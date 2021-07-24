@@ -5,8 +5,18 @@ import socket
 from  .errors import *
 
 class Addr:
-    """
-    Addr represents a network endpoint address
+    """Addr is a generic wrapper around socket addresses
+
+    socket addresses are gotten either from socket.getaddrinfo or
+    they are returned from reading from udp sockets.
+    specific address types maybe derived from this class and the str
+    function implemented to suit the conventional string representation
+    of address type.
+
+    Attributes
+    ----------
+    addrinfo: tuple
+        a socket address
     """
     def __init__(self, addrinfo: tuple):
         """
@@ -32,13 +42,111 @@ class Addr:
     def __repr__(self) -> str:
         return self.__str__()
 
+class IPAddr(Addr):
+    """IPAddr is a wrapper around a ip socket address
+    """
+    def __init__(self, addrinfo: tuple):
+        Addr.__init__(self, addrinfo)
+        if addrinfo[0]:
+            ip = ''
+            if self.scope_id():
+                ip = f'{self.addrinfo[0]}%{self.scope_id()}'
+            else:
+                ip = self.addrinfo[0]
+            self.ipaddr = ipaddr.ip_address(ip)
+        else:
+            self.ipaddr = self.addrinfo
+
+    def is_ipv6(self):
+        if len(self.addrinfo) == 4:
+            return True
+        return False
+
+    def scope_id(self) -> int:
+        if self.is_ipv6():
+            return self.addrinfo[2]
+        return 0
+
+    def flowinfo(self) -> int:
+        if self.is_ipv6():
+            return self.addrinfo[3]
+        return 0
+
+    def __str__(self):
+        return join_host_port(str(self.ipaddr))
+
+class TCPAddr(IPAddr):
+    """TCPAddr wraps around an addrinfo associated with a tcp socket.
+    """
+    def __init__(self, addrinfo: tuple):
+        IPAddr.__init__(self, addrinfo)
+        self.port = self.addrinfo[1]
+
+    def __str__(self):
+        return join_host_port(str(self.ipaddr), self.port)
+
+class UDPAddr(IPAddr):
+    """UDPAddr wraps an addrinfo associated with a udp socket.
+    """
+    def __init__(self, addrinfo: tuple):
+        IPAddr.__init__(self, addrinfo)
+        self.port = self.addrinfo[1]
+
+    def __str__(self):
+        return join_host_port(str(self.ipaddr), self.port)
+
+class AddrConfig:
+    """AddrConfig is used to configure parameters to resolve names
+    """
+    def __init__(self,
+            host: str = '',
+            port: str = '',
+            family: Union[socket.AddressFamily, int] = 0,
+            socktype: Union[socket.SocketKind, int] = 0,
+            proto: int = 0, # integer of protocol to use.
+            flags: int = 0, # multiple flags can be or-ed together
+        ) -> None:
+            self.__addr_config = {
+               'host': host,
+               'port': port,
+               'family': family,
+               'socktype': socktype,
+               'proto': proto,
+               'flags': flags,
+            }
+
+    def add_flag(self, flag: int):
+        self.__addr_config['flags'] |= flag
+
+    def set_socktype(self, socktype: Union[socket.SocketKind, int]):
+        self.__addr_config['socktype'] = socktype
+
+    def set_family(self, family: Union[socket.AddressFamily, int]):
+        self.__addr_config['family'] = family
+
+    def set_proto(self, proto: int):
+        self.__addr_config['proto'] = proto
+
+    def get_config(self) -> dict:
+        return self.__addr_config
+
+
 def join_host_port(host: str, port: str = '') -> str:
+    """join_host_port combines host and port into into representation format
+
+    if the host is an ipv4 it joins as 'host:port', if host contains a ':' as
+    in a literal ipv6 then it join as '[host]:port'
+    """
     if ':' in host:
         return f'[{host}]:{port}'
     return f'{host}:{port}'
 
 def split_host_port(hostport: str):
-    """return the host:port into individual host, port
+    """return a combined address into individual host, port
+
+    it splits network address of the form 'host:port', '[host]:port',
+    'host%zone:port' or '[host%zone]:port' into host or host%zone and
+    port
 
     see function resolve_addr for more info on form of hostport
     """
@@ -87,100 +195,9 @@ def split_host_port(hostport: str):
     # we've made it this far and its cool. we can now start the splitting.
     return host, port
 
-
-class IPAddr(Addr):
-    """IPAddr represents any type of address related to an IP network
-
-    """
-    def __init__(self, addrinfo: tuple):
-        Addr.__init__(self, addrinfo)
-        if addrinfo[0]:
-            ip = ''
-            if self.scope_id():
-                ip = f'{self.addrinfo[0]}%{self.scope_id()}'
-            else:
-                ip = self.addrinfo[0]
-            self.ipaddr = ipaddr.ip_address(ip)
-        else:
-            self.ipaddr = self.addrinfo
-
-    def is_ipv6(self):
-        if len(self.addrinfo) == 4:
-            return True
-        return False
-
-    def scope_id(self) -> int:
-        if self.is_ipv6():
-            return self.addrinfo[2]
-        return 0
-
-    def flowinfo(self) -> int:
-        if self.is_ipv6():
-            return self.addrinfo[3]
-        return 0
-
-    def __str__(self):
-        return join_host_port(str(self.ipaddr))
-
-class TCPAddr(IPAddr):
-    """
-    TCPAddr wraps around an addrinfo associated with a tcp socket.
-    """
-    def __init__(self, addrinfo: tuple):
-        IPAddr.__init__(self, addrinfo)
-        self.port = self.addrinfo[1]
-
-    def __str__(self):
-        return join_host_port(str(self.ipaddr), self.port)
-
-class UDPAddr(IPAddr):
-    """
-    UDPAddr wraps an addrinfo associated with a udp socket.
-    """
-    def __init__(self, addrinfo: tuple):
-        IPAddr.__init__(self, addrinfo)
-        self.port = self.addrinfo[1]
-
-    def __str__(self):
-        return join_host_port(str(self.ipaddr), self.port)
-
-class AddrConfig:
-    """AddrConfig is used to configure parameters for the getaddrino function
-    
-    """
-    def __init__(self,
-            host: str = '',
-            port: str = '',
-            family: Union[socket.AddressFamily, int] = 0,
-            socktype: Union[socket.SocketKind, int] = 0,
-            proto: int = 0, # integer of protocol to use.
-            flags: int = 0, # multiple flags can be or-ed together
-        ) -> None:
-            self.__addr_config = {
-               'host': host,
-               'port': port,
-               'family': family,
-               'socktype': socktype,
-               'proto': proto,
-               'flags': flags,
-            }
-
-    def add_flag(self, flag: int):
-        self.__addr_config['flags'] |= flag
-
-    def set_socktype(self, socktype: Union[socket.SocketKind, int]):
-        self.__addr_config['socktype'] = socktype
-
-    def set_family(self, family: Union[socket.AddressFamily, int]):
-        self.__addr_config['family'] = family
-
-    def set_proto(self, proto: int):
-        self.__addr_config['proto'] = proto
-
-    def get_config(self) -> dict:
-        return self.__addr_config
-
 def resolve_addr_list(addr_config: dict):
+    # runs the address resolution parameters through socket.getaddrinfo
+    # function and returns the resulting addresses
     return socket.getaddrinfo(
             addr_config['host'],
             addr_config['port'],
@@ -196,23 +213,23 @@ def inet_addr_list(addr_config: dict, network: str):
     if network:
         addrinfo_list = resolve_addr_list(addr_config)
         addr_obj = None
-        if 'tcp' in network:
+        if network == 'tcp' or network == 'tcp4' or network == 'tcp6':
             addr_obj = TCPAddr
-        elif 'udp' in network:
+        elif network == 'udp' or network == 'udp4' or network == 'udp6':
             addr_obj = UDPAddr
-        elif 'ip' in network:
+        elif network == 'ip' or network == 'ip4' or network == 'ip6':
             addr_obj = IPAddr
         else:
             raise UnknownNetworkError(network)
         addr_list = []
         for addrinfo in addrinfo_list:
-            addr_list.append(addr_obj(addrinfo[-1]))
+            addr_list.append(addr_obj(addrinfo[-1])) # addrinfo is always the last
         return addr_list
     else:
         raise UnknownNetworkError(network)
 
-def config_inetaddr(host: str, port: str, network: str):
-    """config_inetadr returns an AddrConfig instance.
+def config_inetaddr(host: str, port: str, network: str) -> AddrConfig:
+    """config_inetadr returns an AddrConfig suitable to resolve host:port.
 
     this instance can be resolved into an address endpoint
     that can be connected to, sent into or listened on.
@@ -227,10 +244,12 @@ def config_inetaddr(host: str, port: str, network: str):
 
     network: str, optional
         the network endpoint type of address
+
+    Raises
+    ------
+    UnknowNetworkError
     """
-    config = AddrConfig(host, port,
-            family=socket.AF_INET,
-            flags=socket.AI_ADDRCONFIG)
+    config = AddrConfig(host, port)
 
     if '6' in network:
         # address family for ipv6
@@ -238,31 +257,49 @@ def config_inetaddr(host: str, port: str, network: str):
         if not socket.has_ipv6:
             # for machines without ipv6
             config.add_flag(socket.AI_V4MAPPED)
-     
-    if 'udp' in network:
-        config.set_socktype(socket.SOCK_DGRAM)
-        config.set_proto(socket.IPPROTO_UDP)
-        return config
-    elif 'tcp' in network:
-        config.set_socktype(socket.SOCK_STREAM)
-        config.set_proto(socket.IPPROTO_TCP)
-        return config
-    elif not network:
+    else:
+        config.set_family(socket.AF_INET)
+
+    if network:
+        # if we have a network to connect to, we want
+        # addresses we can reach.
+        config.add_flag(socket.AI_ADDRCONFIG)
+        if network == 'udp' or network == 'udp4' or network == 'udp6':
+            config.set_socktype(socket.SOCK_DGRAM)
+            config.set_proto(socket.IPPROTO_UDP)
+            return config
+        elif network == 'tcp' or network == 'tcp4' or network == 'tcp6':
+            config.set_socktype(socket.SOCK_STREAM)
+            config.set_proto(socket.IPPROTO_TCP)
+            return config
+        else:
+            raise UnknownNetworkError(network)
+    else:
         config.set_socktype(socket.SOCK_STREAM)
         config.set_family(socket.AF_UNSPEC)
         config.add_flag(socket.AI_PASSIVE)
         return config
-    else:
-        raise UnknownNetworkError(network)
 
 def resolver(host: str, port: str, network: str) -> tuple[list, AddrConfig]:
-    """return a list of resolved endpoints and the config used to resolve them
+    """resolve endpoints and return the parameters used to resolve them.
+
+    Parameters
+    ----------
+    host: str
+        the network host to resolve
+
+    port: str
+        the port number or service name
+
+    network: str
+       type of network to resolved address is related to. 
     """
     config = config_inetaddr(host, port, network)
     addr_list = inet_addr_list(config.get_config(), network)
     return addr_list, config
 
 def loopback_addr(network) -> str:
+    # loopback ip address for network interface.
     if '6' in network:
         return '::1'
     return '127.0.0.1'
@@ -366,7 +403,7 @@ def resolve_addr(address: str, network: str):
 
     Returns:
     --------
-    TCPAddr | UDPAddr | IPAddr | Addr
+    TCPAddr | UDPAddr | IPAddr
 
     Raises:
     -------

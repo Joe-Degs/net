@@ -130,6 +130,9 @@ class AddrConfig:
     def get_config(self) -> dict:
         return self.__addr_config
 
+    def get_socket(self) -> socket.socket:
+        return socket.socket(self.__addr_config['family'], self.__addr_config['socktype'],
+                self.__addr_config['proto'])
 
 def join_host_port(host: str, port: str = '') -> str:
     """join_host_port combines host and port into into representation format
@@ -305,7 +308,7 @@ def loopback_addr(network) -> str:
     return '127.0.0.1'
 
 def resolve_udp_addr(address: str, network: str='udp') -> Optional[UDPAddr]:
-    """resolve_tcp_addr returns an address of a udp endpoint
+    """resolve_udp_addr returns an address of a udp endpoint
 
     if the address is not a literal ip address and port number,
     resolve_udp_addr resolves the address to an endpoint of a udp network.
@@ -336,7 +339,7 @@ def resolve_udp_addr(address: str, network: str='udp') -> Optional[UDPAddr]:
         raise UnknownNetworkError(network)
 
 def resolve_tcp_addr(address: str, network: str='tcp') -> TCPAddr:
-    """resolve_tcp_addr returns the tcp endpoint of address
+    """resolve_tcp_addr returns the address of the tcp endpoint
 
     if the address is not a literal ip address and port number,
     resolve_tcp_addr resolves the address to an endpoint of a tcp network.
@@ -351,6 +354,15 @@ def resolve_tcp_addr(address: str, network: str='tcp') -> TCPAddr:
         address endpoint of the tcp connection
 
     network: str
+
+    Parameter
+    ---------
+    address: str
+        the network endpoint to connect to in "host:port" format.
+
+    network: str
+        type of network to connect to.
+        see resolve_addr for types of network supported.
         a tcp network name
 
     """
@@ -371,10 +383,10 @@ def resolve_addr(address: str, network: str):
     resolve_addr returns an address that you can connect to, sendto or
     listen on.
 
-    for tcp and udp networks the address is of the form "host:port". The
+    for TCP and UDP networks the address is of the form "host:port". The
     host must be a literal ip, a hostname that can be resolved to a literal
-    ip address or None which means a NULL will be passed to the C API that would
-    eventually resolve the address.
+    ip address or an empty or unspecified address, this will be passed to the
+    underlying address resolvers.
 
     If the host is a literal IPv6 address, it must be enclosed in square brackets,
     as in "[::1]:80", "[2001::1]:80" or "[fe80::1%zone]:80". The zone specifies
@@ -382,6 +394,14 @@ def resolve_addr(address: str, network: str):
 
     ports must be a literal number wrapped in a string or a service name. ex:
     "80" for a literal port number or "http" for the service name, both are valid.
+    
+    for TCP and UDP if the address is empty of literal unspecified address as in
+    ":80", "0.0.0.0:80" or "[::]:80" the ip address part results in "",
+    "0.0.0.0", "::" and the part is parsed as usual.
+
+    Note that there is no verification of ip addresses going on in this package
+    so make sure to input correct ip addresses or the underlying socket
+    layer will throw errors related to incorrect supplied to it.
 
     examples:
     --------    

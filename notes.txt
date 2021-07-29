@@ -1,0 +1,26 @@
+so this is a package for crafting tcp and udp and probably more to come test socket servers in
+python without going through the hussle of writing socket code yourself every single time.
+
+so the vision is to achieve something like golang.
+
+def tcp_client():
+	try:
+		tcp_cl = net.Dial(":80", "tcp")
+		tcp_cl.write(b"some arbitrary data")
+	except Exception:
+		raise
+
+def handle_conn(c: net.TCPConn):
+	print(f'serving {c.remote_addr()}')
+	c.write(b"you've been served!")
+
+def tcp_listen():
+	try:
+		l = net.Listen(":80", "tcp")
+		while True:
+			tcp_conn = l.accept()
+			handle_conn(tcp_conn)
+	except Exception:
+		raise
+
+

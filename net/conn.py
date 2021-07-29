@@ -1,4 +1,4 @@
-from typing import Union, Optional, Type, TypeVar
+from typing import Union, Optional
 import socket
 import io
 import os
@@ -39,14 +39,20 @@ class _SocketWriter(io.BufferedIOBase):
             return view.nbytes
 
 class Conn:
-    """
+    """Conn is a generic wrapper around socket objects.
+
     Conn is implements a generic wrapper around socket connections.
     It is implemented to look exactly like the way the net.Conn type
     in golang is. But i'm not sure it works the same way.
     """
     def __init__(self, sock: socket.socket):
         self.sock = sock
-        self.settimeout(2.0)
+
+        # local and remote address of the socket connection.
+        self.laddr: Optional[Union[Addr, UDPAddr, TCPAddr]] = None
+        self.raddr: Optional[Union[Addr, UDPAddr, TCPAddr]] = None
+
+        # self.settimeout(2.0)
         if os.name == 'nt':
             # windows socket file descriptors are not treated as
             # normal file descriptors and so cannot be wrapped in
@@ -93,7 +99,7 @@ class Conn:
         self.sock.close()
         self.__conn.close()
 
-    def shutdown(self, flag: str) -> None:
+    def shutdown(self, flag: int) -> None:
         # shutdown the socket connection(read, write or both) and close
         # all open file descriptors.
         # options === (SHUT_RD, SHUT_WR, SHUT_RDWR)
@@ -104,100 +110,113 @@ class TCPConn(Conn):
     """
     TCPConn implements a tcp connection wrapper.
     """
-    def __init__(self, addr: Union[Addr, TCPAddr], conn_type: Optional[str]=None,
+    def __init__(self, laddr: Optional[TCPAddr], raddr: Optional[TCPAddr], conn_type: Optional[str]=None,
             sock: Optional[socket.socket]=None) -> None:
         if sock == None:
-            Conn.__init__(self, socket.socket(socket.AF_INET, socket.SOCK_STREAM,
+            super().__init__(socket.socket(socket.AF_INET, socket.SOCK_STREAM,
                     socket.IPPROTO_TCP))
         else:
-            Conn.__init__(self, sock)
-        self.addr = addr
-        try:
-            if conn_type == 'listen':
-                # a socket opened for listening
-                # bind socket to addr provided
-                self.srv_bind(self.addr)
-            elif conn_type == 'connect':
-                # socket opened to connect to a remote host
-                # connect to addr provided and change addr
-                # to the arbitrary host:port from the kernel
-                self.connect(addr)
-                self.addr = TCPAddr(self.sock.getsockname())
-            elif not conn_type:
-                # you listened and recieved a connection
-                # you just assign it to self.sock and leave it
-                # at that.
-                return
+            super().__init__(sock)
+
+        if conn_type == 'listen':
+            # a socket opened for listening
+            # bind socket to addr provided
+            if laddr:
+                self.srv_bind(laddr)
+        elif conn_type == 'connect':
+            # socket opened to connect to a remote host
+            # connect to addr provided and change addr
+            # to the arbitrary host:port from the kernel
+            if laddr:
+                self.srv_bind(laddr)
+            if raddr:
+                self.connect(raddr)
             else:
-                # we recieved a conn_type thats not any of the
-                # of the 3 above so we throw an exception.
-                # we don't know what it is.
-                raise NotImplementedError(conn_type)
-        except:
+                self.sock.close()
+                raise ConnectionError('connecting to empty address')
+        elif not conn_type:
+            # you listened and recieved a connection
+            # you just assign it to self.sock and leave it
+            # at that.
+            return
+        else:
+            # we recieved a conn_type thats not any of the
+            # of the 3 above so we throw an exception.
+            # we don't know what it is.
             self.sock.close()
-            raise
+            raise NotImplementedError(conn_type)
     
-    def local_addr(self) -> Union[Addr, TCPAddr]:
+    def local_addr(self):
         # return the local addr associated with socket.
-        return self.addr
+        if self.laddr:
+            return self.laddr
+        self.laddr = TCPAddr(self.sock.getsockname())
+        return self.laddr
 
     def remote_addr(self):
         # return remote address associated with socket.
-        return TCPAddr(self.sock.getpeername())
+        if self.raddr:
+            return  self.raddr
+        self.raddr = TCPAddr(self.sock.getpeername())
+        return self.raddr
 
 class UDPConn(Conn):
     """ A  simple UDP Connnection """
-    def __init__(self, addr: Union[Addr, UDPAddr], conn_type: Optional[str]=None,
+    def __init__(self, laddr: Optional[UDPAddr], raddr: Optional[UDPAddr], conn_type: Optional[str]=None,
             sock: Optional[socket.socket]=None) -> None:
         if sock == None:
-            Conn.__init__(self, socket.socket(socket.AF_INET, socket.SOCK_DGRAM,
+            super().__init__(socket.socket(socket.AF_INET, socket.SOCK_DGRAM,
                 socket.IPPROTO_UDP))
         else:
-            Conn.__init__(self, sock)
-        self.addr = addr
-        self.max_packet_size = 8192
-        try:
-            if conn_type == 'listen':
-                self.srv_bind(self.addr, reuse=False)
-            elif conn_type == 'connect':
-                self.connect(addr)
-                self.addr = UDPAddr(self.sock.getsockname())
-            elif conn_type == '':
-                # remote socket conn, do not bind, do not connect
-                # don't do shit
-                return
-            else:
-                raise NotImplementedError(conn_type)
-        except:
-            self.sock.close()
-            raise
+            super().__init__(sock)
 
-    def read_from(self) -> tuple[bytes, Addr]:
+        self.max_packet_size = 8192
+
+        if conn_type == 'listen':
+            if laddr:
+                self.srv_bind(laddr, reuse=False)
+        elif conn_type == 'connect':
+            # if we have a local address, we bind to it
+            # if we have a remote addr we connect to it.
+            # else we through an error.
+            if laddr:
+                self.srv_bind(laddr)
+            if raddr:
+                self.connect(raddr)
+            else:
+                self.sock.close()
+                raise ConnectionError('connecting to empty address')
+        elif not conn_type:
+            # remote socket conn, do not bind, do not connect
+            # don't do shit
+            return
+        else:
+            self.sock.close()
+            raise NotImplementedError(conn_type)
+
+    def read_from(self) -> tuple[bytes, UDPAddr]:
         # read_from reads from the socket connection and returns
         # the bytes read with the remote host address read from
         data, raddr = self.sock.recvfrom(self.max_packet_size)
-        return data, Addr(addrinfo=raddr)
+        return data, UDPAddr(raddr)
 
-    def read_from_udp(self) -> tuple[bytes, UDPAddr]:
-        # does the same thing as read_from but returns a UDPAddr
-        # class instead.
-        data, addr = self.read_from()
-        return data, UDPAddr(addr.addrinfo)
-
-    def write_to(self, buf: bytes, addr: Union[Addr, UDPAddr]) -> int:
+    def write_to(self, buf: bytes, addr: UDPAddr) -> int:
         # write_to write buf[bytes] to the underlying socket connection.
         return self.sock.sendto(buf, addr.addrinfo)
 
-    def write_to_udp(self, buf: bytes, addr: UDPAddr) -> int:
-        # write_to but writes to only other udp addresses.
-        return self.sock.sendto(buf, addr.addrinfo)
+    def local_addr(self):
+        # return the local addr associated with socket.
+        if self.laddr:
+            return self.laddr
+        self.laddr = UDPAddr(self.sock.getsockname())
+        return self.laddr
 
-    def local_addr(self) -> UDPAddr:
-        return UDPAddr(addrinfo=self.sock.getsockname())
-
-    def remote_addr(self) -> UDPAddr:
-        return UDPAddr(addrinfo=self.sock.getpeername())
-
+    def remote_addr(self):
+        # return remote address associated with socket.
+        if self.raddr:
+            return  self.raddr
+        self.raddr = UDPAddr(self.sock.getpeername())
+        return self.raddr
 
 class TCPListener(TCPConn):
     """ 
@@ -206,33 +225,99 @@ class TCPListener(TCPConn):
     """
     queue_size = 10
 
-    def __init__(self, addr: Union[Addr, TCPAddr], queue_size: int=queue_size):
+    def __init__(self, laddr: TCPAddr, sock: Optional[socket.socket] = None,
+            queue_size: int=queue_size):
         # create a tcp socket ready to listen on addr.
-        TCPConn.__init__(self, addr, 'listen')
+        super().__init__(laddr, None, 'listen', sock)
         self.sock.listen(queue_size)
 
-    def accept(self) -> Conn:
-        # accept returns the generic Conn type
-        sock, _ = self.sock.accept()
-        return Conn(sock)
-
-    def accept_tcp(self) -> TCPConn:
+    def accept(self) -> TCPConn:
         # return a TCPConn from the underlying listening socket.
         sock, addrinfo = self.sock.accept()
-        return TCPConn(addr=Addr(addrinfo), sock=sock)
+        return TCPConn(TCPAddr(addrinfo), None, sock=sock)
 
+def _config_from_net(addr, net):
+    # return the config from an already resolve address.
+    if addr:
+        return config_inetaddr(addr.addrinfo[0], addr.addrinfo[1], net)
+    return config_inetaddr('', '', net)
 
-def dial(address: str, network: Optional[str]=None):
-    """ 
-    dial connects to network the address endpoint
-    
-    see function resolve_addr for description of network and address parameters
+def dial_udp(laddr: Optional[UDPAddr], raddr: UDPAddr, net = 'tcp'):
+    if 'udp' in net:
+        config = _config_from_net(laddr, net)
+        return UDPConn(laddr, raddr, 'connect', config.get_socket())
+    else:
+        raise UnknownNetworkError(net)
+
+def dial_tcp(laddr: Optional[TCPAddr], raddr: TCPAddr, net = 'tcp'):
+    if 'tcp' in net:
+        config = _config_from_net(laddr, net)
+        return TCPConn(laddr, raddr, 'connect', config.get_socket())
+    else:
+        raise UnknownNetworkError(net)
+
+def dial(address: str, network: str):
+    """dial connects to network the address endpoint
+
+    see resolve_addr function for more on structure of arguments.
+
+    Parameter
+    ---------
+    address: str
+        the network endpoint to connect to in "host:port" format.
+
+    network: str
+        type of network to connect to.
+        see resolve_addr for types of network supported.
     """
-    return NotImplementedError()
+    host, port = split_host_port(address)
+    if 'tcp' in network or 'udp' in network:
+        addr_list, config = resolver(host, port, network)
+        conn_obj = None
+        if 'tcp' in network:
+            conn_obj = TCPConn
+        else:
+            conn_obj = UDPConn
+
+        for addr in addr_list:
+            try:
+                conn = conn_obj(None, addr, 'connect', config.get_socket())
+                return conn
+            except:
+                raise
+    else:
+        raise UnknownNetworkError(network)
+
+def listen_udp(laddr: UDPAddr, network = 'udp'):
+    if 'udp' in network:
+        config = _config_from_net(laddr, network)
+        return UDPConn(laddr, None, 'listen', config.get_socket())
+    else:
+        raise UnknownNetworkError(network)
+
+def listen_tcp(laddr: TCPAddr, network = 'tcp'):
+    if 'tcp' in network:
+        config = _config_from_net(laddr, network)
+        return TCPListener(laddr, config.get_socket())
+    else:
+        raise UnknownNetworkError(network)
 
 def listen(address: str, network: str):
     """ listen announces and waits for connections on a local network address.
 
     the network must be a "tcp", "tcp4", "tcp6", "udp", "udp4" or "udp6"
     """
-    return NotImplementedError()
+    host, port = split_host_port(address)
+    if 'tcp' in network or 'udp' in network:
+        addr_list, config = resolver(host, port, network)
+
+        for addr in addr_list:
+            try:
+                if 'tcp' in network:
+                    lstn = TCPListener(addr, config.get_socket())
+                    return lstn
+                return UDPConn(addr, None, 'listen', config.get_socket())
+            except:
+                raise
+    else:
+        raise UnknownNetworkError(network)

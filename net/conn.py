@@ -23,15 +23,12 @@ class _SocketWriter(io.BufferedIOBase):
         # read from the socket until eof then return read bytes.
         # if an error occurs while reading throw it.
         chunks = []
-        buf = ''
         while True:
-            try:
-                buf = self.__sock.recv(2048)
-                chunks.append(buf)
-                if buf == b'':
-                    return b''.join(chunks)
-            except Exception as e:
-                raise e
+            buf = self.__sock.recv(2048)
+            chunks.append(buf)
+            if not buf:
+                break
+        return b''.join(chunks)
 
     def write(self, buf) -> int:
         self.__sock.sendall(buf)
@@ -103,12 +100,13 @@ class Conn:
         # shutdown the socket connection(read, write or both) and close
         # all open file descriptors.
         # options === (SHUT_RD, SHUT_WR, SHUT_RDWR)
-        self.sock.shutdown(flag)
-        self.close()
+        if flag >= socket.SHUT_RD and flag <= socket.SHUT_RDWR:
+            self.sock.shutdown(flag)
+        else:
+            raise SocketError(f'invalid flag constant used on shutdown {flag}')
 
 class TCPConn(Conn):
-    """
-    TCPConn implements a tcp connection wrapper.
+    """TCPConn is tcp socket wrapper.
     """
     def __init__(self, laddr: Optional[TCPAddr], raddr: Optional[TCPAddr], conn_type: Optional[str]=None,
             sock: Optional[socket.socket]=None) -> None:
@@ -133,7 +131,7 @@ class TCPConn(Conn):
                 self.connect(raddr)
             else:
                 self.sock.close()
-                raise ConnectionError('connecting to empty address')
+                raise SocketError('connecting tcp socket with an empty remote address')
         elif not conn_type:
             # you listened and recieved a connection
             # you just assign it to self.sock and leave it
@@ -144,7 +142,7 @@ class TCPConn(Conn):
             # of the 3 above so we throw an exception.
             # we don't know what it is.
             self.sock.close()
-            raise NotImplementedError(conn_type)
+            raise SocketError(f'trying to perform an unsurported socket action - {conn_type}')
     
     def local_addr(self):
         # return the local addr associated with socket.
@@ -161,7 +159,8 @@ class TCPConn(Conn):
         return self.raddr
 
 class UDPConn(Conn):
-    """ A  simple UDP Connnection """
+    """UDPConn is a wrapper around udp sockets
+    """
     def __init__(self, laddr: Optional[UDPAddr], raddr: Optional[UDPAddr], conn_type: Optional[str]=None,
             sock: Optional[socket.socket]=None) -> None:
         if sock == None:
@@ -178,21 +177,21 @@ class UDPConn(Conn):
         elif conn_type == 'connect':
             # if we have a local address, we bind to it
             # if we have a remote addr we connect to it.
-            # else we through an error.
+            # else we throw an error.
             if laddr:
                 self.srv_bind(laddr)
             if raddr:
                 self.connect(raddr)
             else:
                 self.sock.close()
-                raise ConnectionError('connecting to empty address')
+                raise SocketError('connecting udp socket with an empty remote address')
         elif not conn_type:
             # remote socket conn, do not bind, do not connect
             # don't do shit
             return
         else:
             self.sock.close()
-            raise NotImplementedError(conn_type)
+            raise SocketError(f'trying to perform an unsurported socket action - {conn_type}')
 
     def read_from(self) -> tuple[bytes, UDPAddr]:
         # read_from reads from the socket connection and returns

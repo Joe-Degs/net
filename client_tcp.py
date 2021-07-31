@@ -3,26 +3,40 @@ from net import address as addr
 from net import conn
 
 def handle_conn(c: conn.TCPConn):
-    data = b"random test data"
-    c.write(data)
-    b = c.read()
-    if data == b:
-        print('======> read write into socket successful')
-        print(f'sent and recieved => {b.encode("utf8")}')
-    else:
-        print('<=== reading and writing sockets not working as expected')
-        print(f'recieved => {b.encode("utf8")}')
+    try:
+        print(f'local_addr: {c.local_addr()} | remote_addr: {c.remote_addr()}')
+        data = b"random test data"
+        c.write(data)
+        b = c.read()
+        if data == b:
+            print('======> read write into socket successful')
+            print(f'sent and recieved => {b.decode("utf8")}')
+        else:
+            print('<=== reading and writing sockets not working as expected')
+            print(f'recieved => {b.encode("utf8")}')
+        c.close()
+    except Exception as e:
+        c.close()
+        raise e
 
 def use_dial(address, network):
-    tcp_client = dial(address, network)
-    handle_conn(tcp_client)
+    try:
+        tcp_client = conn.dial(address, network)
+        tcp_client.settimeout(20)
+        handle_conn(tcp_client)
+    except Exception:
+        tcp_client.close()
 
 def use_dial_tcp(addr, addr2, network):
-    laddr = None
-    if addr:
-        laddr = addr.resolve_tcp_addr(addr, network)
-    raddr = addr.resolve_tcp_addr(addr2, network)
-    tcp_client = (laddr, raddr, network)
+    try:
+        laddr = None
+        if addr:
+            laddr = addr.resolve_tcp_addr(addr, network)
+        raddr = addr.resolve_tcp_addr(addr2, network)
+        tcp_client = conn.dial_tcp(laddr, raddr, network)
+        handle_conn(tcp_client)
+    except Exception:
+        tcp_client.close()
 
 
 def main():

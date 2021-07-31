@@ -3,10 +3,15 @@ from net import address as addr
 from net import conn
 
 def handle_conn(c: conn.TCPConn):
-    print(f'recieved connection from {c.local_addr()}')
-    b = c.read()
-    c.write(b)
-    print('read and wrote bytes of len {len(b)} to client connection')
+    try:
+        print(f'recieved connection from {c.remote_addr()}')
+        b = c.read()
+        c.write(b)
+        print(f'read and wrote bytes of len {len(b)} to client connection\n message: {b.decode("utf8")}')
+        c.close()
+    except Exception as e:
+        c.close()
+        raise e
 
 """
 yeah guesss what! keyboard interrupts on the sockets do not work.
@@ -24,8 +29,9 @@ def use_listen_tcp(address, network):
         while True:
             tcp_conn = lstn.accept()
             handle_conn(tcp_conn)
-    except Exception:
+    except Exception as e:
         lstn.close()
+        raise e
 
 def use_listen(address, network):
     try:
@@ -35,8 +41,9 @@ def use_listen(address, network):
         while True:
             tcp_conn = lstn.accept()
             handle_conn(tcp_conn)
-    except Exception:
+    except Exception as e:
         lstn.close()
+        raise e
 
 def main():
     args = sys.argv[1:]

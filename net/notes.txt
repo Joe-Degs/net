@@ -77,3 +77,31 @@ not exactly easy for me right now.
 
     - listen, listen_udp, listen_tcp and related listening things are
      done now. Nows the time for testing to happen in the package.
+
+July 30, 2021
+--------------
+I'm having a pretty serious issue with reading and writing from
+socket connections at the moment. Couldn't sleep well because
+of this problem and here i am at 5 am trying hard to find a solution
+to it.
+
+The problem is, because reads are blocking and because right now
+my sockets do not know how much data the connection at the other end is
+sending into the socket for them to read. They block even after
+reading the message.
+
+A specific case is i have a tcp socket listener on localhost, that
+listens for connections, if it gets a connection, it reads data
+from the connection and then sends the data read back to the client,
+an echo server basically. the read socket function is implemented like so,
+it uses a while loop to read until it reads an empty byte(b'') then it
+breaks and returns the bytes read from the socket. So basically
+if it reads the first round of data it goes back to waiting for
+another batch to return. But what if there's no other batch?, the
+read implementation doesn't know this so it just hangs around waiting
+forever for another batch to arrive and not returning the data
+it read first. The only way if returns the first data read is if
+the clients closes the connection or crashes. This is bad.
+
+I need a way to know the amount of data to be read from the connection,
+so that after reading i know where to stop.

@@ -105,3 +105,44 @@ the clients closes the connection or crashes. This is bad.
 
 I need a way to know the amount of data to be read from the connection,
 so that after reading i know where to stop.
+
+Aug 2, 2021
+-----------
+I've still not started on solving this issue. spent the weekend doing
+something fun. Installed debian in a virtual machine, removed the desktop
+environment, installed i3wm and now i'm writing this from this lean, 
+mean and bad motherfucker :). Now how do we solve this mistery.????
+
+
+    - i thought about defining a message structure for the sockets. this
+      structure will contain the length of the message been recieved or sent
+      amidst other things, so when we reading we read till the length of the
+      message and stop there. but then i thought, what if we have a python
+      server and a go client or the other way around or any other mix of
+      languages out there, we will obviously be serving crap and reading
+      ourselves so this will plain just not work, i guess. (didnt implement it)
+
+    - this brings us to the second thought i had on this problem. I've been
+      hearing alot about non blocking sockets, what their deal?
+
+    - the other idea i had is using timeouts to read the data. Basically
+      just like the non blocking sockets. the idea is to set a very short
+      timeout on the socket, then try to read so it can return early so
+      you quite it.
+
+    - The thing though, python timeouts are exceptions and i basically have
+      to handle them as such, but i absolutely do not want that, so i think
+      i'll try the non blocking socket first then move on from there.
+
+
+    - so agenda for today, implement the non blocking logic first then test 
+      and move on to do the timeouts and see which one works best.
+      the message structure one doesn't seem like a smart idea so i'll put
+      that one on hold for now.
+
+    - did a bunch of documentation, refactoring and thinking today and i
+      realised who am i to impose timeouts on somebody elses sockets. I have
+      to find a better way to prevent the read calls from hanging forever
+      and timeout are definitely not the way to go.
+      if the non blocking thing doesn't work out i'll have to find a more
+      innovative way to do the reads without blocking.

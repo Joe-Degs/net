@@ -1,4 +1,5 @@
 from typing import Union, Optional
+from enum import Enum
 import socket
 import io
 import os

@@ -43,7 +43,19 @@ class Addr:
         return self.__str__()
 
 class IPAddr(Addr):
-    """IPAddr is a wrapper around a ip socket address
+    """IPAddr is a wrapper around a ip socket addresses.
+
+    this the foundation of all ip related sockets like udp, tcp and any other
+    one i do not know about. It implements some basic ip address tinkering
+    methods. But if you need to access things like ipv6 global unicast,
+    multicast and all the other things, self.ipaddr is an instance of the
+    Union[ipaddress.IPv4Address, ipaddress.IPv6Address] so you can get those
+    methods i obviously can not implement there.
+
+    Parameters
+    -----------
+    addrinfo: tuple
+        the (ip address, port) tuple associated with a socket or from getaddrinfo. 
     """
     def __init__(self, addrinfo: tuple):
         Addr.__init__(self, addrinfo)
@@ -77,6 +89,8 @@ class IPAddr(Addr):
 
 class TCPAddr(IPAddr):
     """TCPAddr wraps around an addrinfo associated with a tcp socket.
+
+    see IPAddr for more info.
     """
     def __init__(self, addrinfo: tuple):
         IPAddr.__init__(self, addrinfo)
@@ -87,6 +101,8 @@ class TCPAddr(IPAddr):
 
 class UDPAddr(IPAddr):
     """UDPAddr wraps an addrinfo associated with a udp socket.
+
+    see IPAddr for more info.
     """
     def __init__(self, addrinfo: tuple):
         IPAddr.__init__(self, addrinfo)
@@ -96,7 +112,11 @@ class UDPAddr(IPAddr):
         return join_host_port(str(self.ipaddr), self.port)
 
 class AddrConfig:
-    """AddrConfig is used to configure parameters to resolve names
+    """AddrConfig is used to configure parameters for address resolution.
+
+    an empty AddrConfig can be initialized and the parameters set to
+    the callers needs. AddrConfig provides methods to set all the 
+    necessary socket and getaddrinfo parameters available.
     """
     def __init__(self,
             host: str = '',
@@ -116,23 +136,29 @@ class AddrConfig:
             }
 
     def add_flag(self, flag: int):
+        # set flags that get passed to socket.getaddrinfo
         self.__addr_config['flags'] |= flag
 
     def set_socktype(self, socktype: Union[socket.SocketKind, int]):
+        # set the socket type for the address.
         self.__addr_config['socktype'] = socktype
 
     def set_family(self, family: Union[socket.AddressFamily, int]):
+        # set the address family for the address and network.
         self.__addr_config['family'] = family
 
     def set_proto(self, proto: int):
+        # add the protocol of the address.
         self.__addr_config['proto'] = proto
 
     def get_config(self) -> dict:
+        # return the config as a dict.
         return self.__addr_config
 
     def get_socket(self) -> socket.socket:
-        return socket.socket(self.__addr_config['family'], self.__addr_config['socktype'],
-                self.__addr_config['proto'])
+        # return the network socket with the parameters set in the config.
+        return socket.socket(self.__addr_config['family'],
+                self.__addr_config['socktype'], self.__addr_config['proto'])
 
 def join_host_port(host: str, port: str = '') -> str:
     """join_host_port combines host and port into into representation format
@@ -210,17 +236,54 @@ def resolve_addr_list(addr_config: dict):
             addr_config['flags']
         )
 
+def net_is_valid(network: str, net: str) -> bool:
+    """net_is_valid checks if the net is suported and is part of the specified
+    network group.
+
+    Parameters
+    ----------
+    network: str
+        the network group net is part of.
+
+    net: str
+        a member of the network group specified
+    """
+    if 'tcp' === network:
+        return True if net == 'tcp' or net == 'tcp4' \
+                or net == 'tcp6' else False
+    elif 'udp' === network:
+        return True if net == 'udp' or net == 'udp4' \
+                or net == 'udp6' else False
+    elif 'ip' === network:
+        return True if net == 'ip' or net == 'ip4' \
+                or net == 'ip6' else False
+    else:
+        return False
+
 def inet_addr_list(addr_config: dict, network: str):
     """internet_addr_list returns a list of TCPAddr | UDPAddr | IPAddr
+
+    Parameters
+    ----------
+    addr_config: dict
+        the dict form of AddrConfig. can be obtained by calling get_config
+        method of AddrConfig.
+
+    network: str
+        network type to resolve addresses to.
+
+    taking the dict form of AddrConfig and the network, it tries to
+    resolve the host, port into a list of ip address, port pairs with
+    the parameters in the config.
     """
     if network:
         addrinfo_list = resolve_addr_list(addr_config)
         addr_obj = None
-        if network == 'tcp' or network == 'tcp4' or network == 'tcp6':
+        if net_is_valid('tcp', network): # check tcp
             addr_obj = TCPAddr
-        elif network == 'udp' or network == 'udp4' or network == 'udp6':
+        elif net_is_valid('udp', network):
             addr_obj = UDPAddr
-        elif network == 'ip' or network == 'ip4' or network == 'ip6':
+        elif net_is_valid('ip', network):
             addr_obj = IPAddr
         else:
             raise UnknownNetworkError(network)
@@ -234,8 +297,11 @@ def inet_addr_list(addr_config: dict, network: str):
 def config_inetaddr(host: str, port: str, network: str) -> AddrConfig:
     """config_inetadr returns an AddrConfig suitable to resolve host:port.
 
-    this instance can be resolved into an address endpoint
-    that can be connected to, sent into or listened on.
+    the AddrConfig instance returned from this function is the default one
+    that is used to resolve addresses and can be used to create sockets.
+    Just make sure host, port and network are what is expected by the function.
+
+    see resolve_addr for more info on the structure of the parameters.
 
     Parameters
     -----------
@@ -267,11 +333,11 @@ def config_inetaddr(host: str, port: str, network: str) -> AddrConfig:
         # if we have a network to connect to, we want
         # addresses we can reach.
         config.add_flag(socket.AI_ADDRCONFIG)
-        if network == 'udp' or network == 'udp4' or network == 'udp6':
+        if net_is_valid('udp', network):
             config.set_socktype(socket.SOCK_DGRAM)
             config.set_proto(socket.IPPROTO_UDP)
             return config
-        elif network == 'tcp' or network == 'tcp4' or network == 'tcp6':
+        elif net_is_valid('tcp', network):
             config.set_socktype(socket.SOCK_STREAM)
             config.set_proto(socket.IPPROTO_TCP)
             return config
@@ -285,6 +351,14 @@ def config_inetaddr(host: str, port: str, network: str) -> AddrConfig:
 
 def resolver(host: str, port: str, network: str) -> tuple[list, AddrConfig]:
     """resolve endpoints and return the parameters used to resolve them.
+
+    this function makes live easier by calling all the other functions involved
+    in the address resolution process. If you don't have any fine grained
+    address paramters to give, just call this function with the host, port and
+    network and it will return a list of ip address, port pairs and parameters
+    used to resolve them.
+
+    see resolve_addr for more info on the structure of the arguments.
 
     Parameters
     ----------
@@ -329,7 +403,7 @@ def resolve_udp_addr(address: str, network: str='udp') -> Optional[UDPAddr]:
     ------
     UnknownNetworkError
     """
-    if 'udp' in network:
+    if net_is_valid('udp', network):
         host, port = split_host_port(address)
         if not host:
             host = loopback_addr(network)
@@ -366,7 +440,7 @@ def resolve_tcp_addr(address: str, network: str='tcp') -> TCPAddr:
         a tcp network name
 
     """
-    if 'tcp' in network:
+    if net('tcp', network):
         host, port = split_host_port(address)
         if not host:
             host = loopback_addr(network)
@@ -376,6 +450,10 @@ def resolve_tcp_addr(address: str, network: str='tcp') -> TCPAddr:
         raise UnknownNetworkError(network)
 
 def resolve_ip_addr(address: str, network: str = 'ip'):
+    # TODO(Joe):
+    # learn to implement some of other ip network socket types and maybe try
+    # wrapping them here. Don't do it now, lets tackle things like this after
+    # exams.
     pass
 
 def resolve_addr(address: str, network: str):
@@ -429,11 +507,11 @@ def resolve_addr(address: str, network: str):
     -------
     UnknownNetworkError
     """
-    if 'tcp' in network:
+    if net_is_valid('tcp', network):
         return resolve_tcp_addr(address, network)
-    elif 'udp' in network:
+    elif net_is_valid('udp', network):
         return resolve_udp_addr(address, network)
-    elif 'ip' in network:
+    elif net_is_valid('ip', network):
         return resolve_ip_addr(address, network)
     else:
         raise UnknownNetworkError(network)

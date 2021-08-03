@@ -6,9 +6,9 @@ import os
 from .address import *
 
 class _SocketWriter(io.BufferedIOBase):
-    """
-    A writtable and readable BufferedIOBase implementation for a socket. Most of it copied
-    from https://github.com/python/cpython/blob/302df02789d041a09760f86295ea6b4dcd81aa1d/Lib/socketserver.py#L814
+    """A writtable and readable BufferedIOBase implementation for a socket.
+
+    copied from https://github.com/python/cpython/blob/302df02789d041a09760f86295ea6b4dcd81aa1d/Lib/socketserver.py#L814
     """
     def __init__(self, sock):
         self.__sock = sock
@@ -31,6 +31,7 @@ class _SocketWriter(io.BufferedIOBase):
         return b''.join(chunks)
 
     def write(self, buf) -> int:
+        # write the buf of bytes to the underlying socket connection.
         self.__sock.sendall(buf)
         with memoryview(buf) as view:
             return view.nbytes
@@ -40,10 +41,13 @@ class Conn:
 
     Conn is implements a generic wrapper around socket connections.
     It is implemented to look exactly like the way the net.Conn type
-    in golang is. But i'm not sure it works the same way.
+    in golang is. But i'm not sure it works the same way. it obviously
+    does not work the same way.
     """
     def __init__(self, sock: socket.socket):
         self.sock = sock
+        # make the socket non blocking so it doesnt block the thread
+        self.sock.setblocking(False)
 
         # local and remote address of the socket connection.
         self.laddr: Optional[Union[Addr, UDPAddr, TCPAddr]] = None
@@ -105,25 +109,57 @@ class Conn:
         else:
             raise SocketError(f'invalid flag constant used on shutdown {flag}')
 
+class ConnType(Enum):
+    """ConnType represents the type of socket connection to initiate
+    
+    Possible options are;
+    LISTEN => to create listening sockets
+    CONNECT => create sockets that are used connect to a remote endpoint
+    REMOTE => a socket connection recieved from a listening socket.
+    """
+    LISTEN = 0b01
+    REMOTE = 0b10
+    CONNECT = 0b11
+
 class TCPConn(Conn):
     """TCPConn is tcp socket wrapper.
+
+    it provides a friendly way to interract with tcp sockets.
+
+    Parameters
+    ----------
+    laddr: TCPAddr, optional
+        the local address of the socket been created.
+
+    raddr: TCPAddr, optional
+        the remote address of the tcp socket.
+
+    conn_type: ConnType
+        specify the type of socket connection to open
+
+    sock: socket.socket, optional
+        the socket object to open for network communication. if none is supplied,
+        One can be created based on the address parameters.
     """
-    def __init__(self, laddr: Optional[TCPAddr], raddr: Optional[TCPAddr], conn_type: Optional[str]=None,
-            sock: Optional[socket.socket]=None) -> None:
+    def __init__(self, laddr: Optional[TCPAddr], raddr: Optional[TCPAddr],
+        conn_type: ConnType = ConnType.REMOTE, sock: Optional[socket.socket]=None
+    ):
         if sock == None:
+            # TODO(Joe):
+            # the socket is not factoring in the type of address being passed
+            # during creation. if the addresses are ipv6, create an ipv6 socket.
+            # else ipv4 socket.
             super().__init__(socket.socket(socket.AF_INET, socket.SOCK_STREAM,
                     socket.IPPROTO_TCP))
         else:
             super().__init__(sock)
 
-        if conn_type == 'listen':
-            # a socket opened for listening
-            # bind socket to addr provided
+        if conn_type == ConnType.LISTEN:
+            # a socket opened for listening, bind socket to addr provided
             if laddr:
                 self.srv_bind(laddr)
-        elif conn_type == 'connect':
-            # socket opened to connect to a remote host
-            # connect to addr provided and change addr
+        elif conn_type == ConnType.CONNECT:
+            # socket opened to connect to a remote host, connect to addr provided and change addr
             # to the arbitrary host:port from the kernel
             if laddr:
                 self.srv_bind(laddr)
@@ -132,10 +168,8 @@ class TCPConn(Conn):
             else:
                 self.sock.close()
                 raise SocketError('connecting tcp socket with an empty remote address')
-        elif not conn_type:
-            # you listened and recieved a connection
-            # you just assign it to self.sock and leave it
-            # at that.
+        elif conn_type == ConnType.REMOTE:
+            # remote socket from a listening socket.
             return
         else:
             # we recieved a conn_type thats not any of the
@@ -160,9 +194,32 @@ class TCPConn(Conn):
 
 class UDPConn(Conn):
     """UDPConn is a wrapper around udp sockets
+
+    it provides a friendly way to interract with udp sockets.
+
+    Parameters
+    ----------
+    laddr: UDPAddr, optional
+        the local address of the socket been created.
+
+    raddr: UDPAddr, optional
+        the remote address of the udp socket.
+
+    conn_type: ConnType
+        specify the type of socket connection to open
+
+    sock: socket.socket, optional
+        the socket object to open for network communication. if none is supplied,
+        One can be created based on the address parameters.
     """
-    def __init__(self, laddr: Optional[UDPAddr], raddr: Optional[UDPAddr], conn_type: Optional[str]=None,
-            sock: Optional[socket.socket]=None) -> None:
+    def __init__(self, laddr: Optional[UDPAddr], raddr: Optional[UDPAddr],
+        conn_type: ConnType = ConnType.REMOTE, sock: Optional[socket.socket] = None
+    ):
+
+        # TODO(Joe):
+        # the socket is not factoring in the type of address being passed
+        # during creation. if the addresses are ipv6, create an ipv6 socket.
+        # else ipv4 socket.
         if sock == None:
             super().__init__(socket.socket(socket.AF_INET, socket.SOCK_DGRAM,
                 socket.IPPROTO_UDP))
@@ -171,10 +228,10 @@ class UDPConn(Conn):
 
         self.max_packet_size = 8192
 
-        if conn_type == 'listen':
+        if conn_type == ConnType.LISTEN:
             if laddr:
                 self.srv_bind(laddr, reuse=False)
-        elif conn_type == 'connect':
+        elif conn_type == ConnType.CONNECT:
             # if we have a local address, we bind to it
             # if we have a remote addr we connect to it.
             # else we throw an error.
@@ -185,9 +242,8 @@ class UDPConn(Conn):
             else:
                 self.sock.close()
                 raise SocketError('connecting udp socket with an empty remote address')
-        elif not conn_type:
+        elif conn_type == ConnType.REMOTE:
             # remote socket conn, do not bind, do not connect
-            # don't do shit
             return
         else:
             self.sock.close()
@@ -227,7 +283,7 @@ class TCPListener(TCPConn):
     def __init__(self, laddr: TCPAddr, sock: Optional[socket.socket] = None,
             queue_size: int=queue_size):
         # create a tcp socket ready to listen on addr.
-        super().__init__(laddr, None, 'listen', sock)
+        super().__init__(laddr, None, ConnType.LISTEN, sock)
         self.sock.listen(queue_size)
 
     def accept(self) -> TCPConn:
@@ -241,19 +297,49 @@ def _config_from_net(addr, net):
         return config_inetaddr(addr.addrinfo[0], addr.addrinfo[1], net)
     return config_inetaddr('', '', net)
 
-def dial_udp(laddr: Optional[UDPAddr], raddr: UDPAddr, net = 'tcp'):
-    if 'udp' in net:
-        config = _config_from_net(laddr, net)
-        return UDPConn(laddr, raddr, 'connect', config.get_socket())
-    else:
-        raise UnknownNetworkError(net)
+def dial_udp(laddr: Optional[UDPAddr], raddr: UDPAddr, network = 'tcp'):
+    """dial_udp acts like a dial for tcp networks.
 
-def dial_tcp(laddr: Optional[TCPAddr], raddr: TCPAddr, net = 'tcp'):
-    if 'tcp' in net:
-        config = _config_from_net(laddr, net)
-        return TCPConn(laddr, raddr, 'connect', config.get_socket())
+    see dial and resolve_addr for more info on address formats and network.
+
+    Parameters
+    ----------
+    laddr: UDPAdr, optional
+        the local address of the socket connection.
+
+    raddr: UDPAddr
+        the remote address of the connection
+
+    network: str
+        tcp network type of the socket. it must be a tcp network name.
+    """
+    if net_is_valid('udp', network):
+        config = _config_from_net(laddr, network)
+        return UDPConn(laddr, raddr, ConnType.CONNECT, config.get_socket())
     else:
-        raise UnknownNetworkError(net)
+        raise UnknownNetworkError(network)
+
+def dial_tcp(laddr: Optional[TCPAddr], raddr: TCPAddr, network = 'tcp'):
+    """dial_tcp acts like a dial for tcp networks.
+    
+    see dial and resolve_addr for more info on address formats and network.
+
+    Parameters
+    ----------
+    laddr: TCPAdr, optional
+        the local address of the socket connection.
+
+    raddr: TCPAddr
+        the remote address of the connection
+
+    network: str
+        tcp network type of the socket. it must be a tcp network name.
+    """
+    if net_is_valid('tcp', network):
+        config = _config_from_net(laddr, network)
+        return TCPConn(laddr, raddr, ConnType.CONNECT, config.get_socket())
+    else:
+        raise UnknownNetworkError(network)
 
 def dial(address: str, network: str):
     """dial connects to network the address endpoint
@@ -263,39 +349,66 @@ def dial(address: str, network: str):
     Parameter
     ---------
     address: str
-        the network endpoint to connect to in "host:port" format.
+        the network name you are dialing.
 
     network: str
         type of network to connect to.
         see resolve_addr for types of network supported.
     """
     host, port = split_host_port(address)
-    if 'tcp' in network or 'udp' in network:
+    if net_is_valid('tcp', network) or net_is_valid('udp', network):
         addr_list, config = resolver(host, port, network)
         conn_obj = None
-        if 'tcp' in network:
+        if net_is_valid('tcp', network):
             conn_obj = TCPConn
-        else:
+        elif net_is_valid('udp', network):
             conn_obj = UDPConn
-
-        for addr in addr_list:
-            try:
-                conn = conn_obj(None, addr, 'connect', config.get_socket())
-                return conn
-            except:
-                raise
+        else:
+            raise UnknownNetworkError(network)
+        # TODO(Joe):
+        # this loop will terminate on first try if the connection raises an
+        # exception. This is unacceptable and must be handled. Do so soon!
+        for raddr in addr_list:
+            conn = conn_obj(None, raddr, ConnType.CONNECT, config.get_socket())
+            return conn
     else:
         raise UnknownNetworkError(network)
 
 def listen_udp(laddr: UDPAddr, network = 'udp'):
-    if 'udp' in network:
+    """listen_udp returns a udp socket that's ready to listen for connections
+    on the specified local address.
+
+    we all know udp is special, so it does not have a listener function
+    because technically every udp socket is a listener and a sender at the
+    time.
+
+    Parameters
+    ----------
+    laddr: UDPAddr
+        the local address to initialize the socket to listen on.
+
+    network: str
+        the tcp network socket type to listen on.
+    """
+    if net_is_valid('udp', network):
         config = _config_from_net(laddr, network)
-        return UDPConn(laddr, None, 'listen', config.get_socket())
+        return UDPConn(laddr, None, ConnType.LISTEN, config.get_socket())
     else:
         raise UnknownNetworkError(network)
 
 def listen_tcp(laddr: TCPAddr, network = 'tcp'):
-    if 'tcp' in network:
+    """listen_tcp returns a tcp listener that is ready to listen on
+    the local addr specified.
+
+    Parameters
+    ----------
+    laddr: TCPAddr
+        the local address to initialize the socket to listen on.
+
+    network:
+        the tcp network socket type to listen on.
+    """
+    if net_is_valid('tcp', network):
         config = _config_from_net(laddr, network)
         return TCPListener(laddr, config.get_socket())
     else:
@@ -307,16 +420,18 @@ def listen(address: str, network: str):
     the network must be a "tcp", "tcp4", "tcp6", "udp", "udp4" or "udp6"
     """
     host, port = split_host_port(address)
-    if 'tcp' in network or 'udp' in network:
+    if net_is_valid('tcp', network) or net_is_valid('udp', network):
         addr_list, config = resolver(host, port, network)
-
+        # TODO(Joe):
+        # do not fail until you've tried to connect to all the adresses
+        # resolved. the way this is implemented right now, if the first
+        # attempt throws an error the whole thing halts. So fix it!
         for addr in addr_list:
-            try:
-                if 'tcp' in network:
-                    lstn = TCPListener(addr, config.get_socket())
-                    return lstn
-                return UDPConn(addr, None, 'listen', config.get_socket())
-            except:
-                raise
+            if net_is_valid('tcp', network):
+                return TCPListener(addr, config.get_socket())
+            elif net_is_valid('udp', network):
+                return UDPConn(addr, None, ConnType.LISTEN, config.get_socket())
+            else:
+                raise UnknownNetworkError(network)
     else:
         raise UnknownNetworkError(network)

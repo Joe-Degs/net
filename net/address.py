@@ -248,13 +248,13 @@ def net_is_valid(network: str, net: str) -> bool:
     net: str
         a member of the network group specified
     """
-    if 'tcp' === network:
+    if 'tcp' == network:
         return True if net == 'tcp' or net == 'tcp4' \
                 or net == 'tcp6' else False
-    elif 'udp' === network:
+    elif 'udp' == network:
         return True if net == 'udp' or net == 'udp4' \
                 or net == 'udp6' else False
-    elif 'ip' === network:
+    elif 'ip' == network:
         return True if net == 'ip' or net == 'ip4' \
                 or net == 'ip6' else False
     else:
@@ -440,7 +440,7 @@ def resolve_tcp_addr(address: str, network: str='tcp') -> TCPAddr:
         a tcp network name
 
     """
-    if net('tcp', network):
+    if net_is_valid('tcp', network):
         host, port = split_host_port(address)
         if not host:
             host = loopback_addr(network)

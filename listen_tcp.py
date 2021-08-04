@@ -3,15 +3,11 @@ from net import address as addr
 from net import conn
 
 def handle_conn(c: conn.TCPConn):
-    try:
-        print(f'recieved connection from {c.remote_addr()}')
-        b = c.read()
-        c.write(b)
-        print(f'read and wrote bytes of len {len(b)} to client connection\n message: {b.decode("utf8")}')
-        c.close()
-    except Exception as e:
-        c.close()
-        raise e
+    print(f'recieved connection from {c.remote_addr()}')
+    b = c.read()
+    c.write(b)
+    print(f'read and wrote bytes of len {len(b)} to client connection\n message: {b.decode("utf8")}')
+    c.close()
 
 """
 yeah guesss what! keyboard interrupts on the sockets do not work.
@@ -21,29 +17,21 @@ this should be a straightforward thing on every platform.
 """
 
 def use_listen_tcp(address, network):
-    try:
-        laddr = addr.resolve_addr(address, network)
-        lstn = conn.listen_tcp(laddr, network)
-        lstn.settimeout(20.0)
-        print(f'listening and serving on {lstn.local_addr()}')
-        while True:
-            tcp_conn = lstn.accept()
-            handle_conn(tcp_conn)
-    except Exception as e:
-        lstn.close()
-        raise e
+    laddr = addr.resolve_addr(address, network)
+    lstn = conn.listen_tcp(laddr, network)
+    lstn.settimeout(20.0)
+    print(f'listening and serving on {lstn.local_addr()}')
+    while True:
+        tcp_conn = lstn.accept()
+        handle_conn(tcp_conn)
 
 def use_listen(address, network):
-    try:
-        lstn = conn.listen(address, net)
-        lstn.settimeout(20.0)
-        print(f'listening and serving on {lstn.local_addr()}')
-        while True:
-            tcp_conn = lstn.accept()
-            handle_conn(tcp_conn)
-    except Exception as e:
-        lstn.close()
-        raise e
+    lstn = conn.listen(address, net)
+    lstn.settimeout(20.0)
+    print(f'listening and serving on {lstn.local_addr()}')
+    while True:
+        tcp_conn = lstn.accept()
+        handle_conn(tcp_conn)
 
 def main():
     args = sys.argv[1:]

@@ -48,32 +48,38 @@ class Conn:
     def __init__(self, sock: socket.socket):
         self.sock = sock
         # make the socket non blocking so it doesnt block the thread
-        self.sock.setblocking(False)
+        # self.sock.setblocking(False)
 
         # local and remote address of the socket connection.
         self.laddr: Optional[Union[Addr, UDPAddr, TCPAddr]] = None
         self.raddr: Optional[Union[Addr, UDPAddr, TCPAddr]] = None
 
-        # self.settimeout(2.0)
-        if os.name == 'nt':
-            # windows socket file descriptors are not treated as
-            # normal file descriptors and so cannot be wrapped in
-            # file object. So its wrapped in _SocketWriter insted.
-            self.__conn = _SocketWriter(self.sock)
-        elif os.name == 'posix':
-            self.__conn = io.open(self.sock.fileno(), 'ab')
-        else:
-            NotImplementedError(os.name)
+        self.__conn = io.BufferedRWPair(self.sock.makefile('rb'),
+                self.sock.makefile('wb'))
     
-    def write(self, buf: bytes):
+    def write(self, buf: bytes) -> int:
         # write bytes to the underlying socket connection
         return self.__conn.write(buf)
 
-    def read(self) -> bytes:
+    def read(self, n: int = 0) -> bytes:
         # read data from the underlying socket connection.
-        return self.__conn.read()
+        buf = []
+        b = b''
+        while True:
+            self.settimeout(0.2)
+            try:
+                if n:
+                    b = self.sock.recv(n)
+                    buf.append(b)
+                else:
+                    b = self.__conn.read()
+                    buf.append(b)
+                if len(b) < n:
+                    return b''.join(buf)
+            except Exception:
+                pass
 
-    def file(self) -> Union[_SocketWriter, io.BufferedRandom]:
+    def file(self) -> Union[_SocketWriter, io.BufferedRWPair]:
         # file returns the file object that conn is wrapped in.
         return self.__conn
 
@@ -81,8 +87,8 @@ class Conn:
         # connects underlying socket to addr.
         self.sock.connect(addr.addrinfo)
 
-    def srv_bind(self, addr: Union[Addr, TCPAddr, UDPAddr], reuse=True):
-        # srv_bind binds socket to addr. And it reuse is set to true
+    def bind(self, addr: Union[Addr, TCPAddr, UDPAddr], reuse=True):
+        # bind binds socket to addr. And it reuse is set to true
         # it sets socket option for address reuse.
         if reuse:
             self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -104,7 +110,7 @@ class Conn:
     def shutdown(self, flag: int) -> None:
         # shutdown the socket connection(read, write or both) and close
         # all open file descriptors.
-        # options === (SHUT_RD, SHUT_WR, SHUT_RDWR)
+        # options === (SHUT_RD = 0, SHUT_WR = 1, SHUT_RDWR = 3)
         if flag >= socket.SHUT_RD and flag <= socket.SHUT_RDWR:
             self.sock.shutdown(flag)
         else:
@@ -158,12 +164,12 @@ class TCPConn(Conn):
         if conn_type == ConnType.LISTEN:
             # a socket opened for listening, bind socket to addr provided
             if laddr:
-                self.srv_bind(laddr)
+                self.bind(laddr)
         elif conn_type == ConnType.CONNECT:
             # socket opened to connect to a remote host, connect to addr provided and change addr
             # to the arbitrary host:port from the kernel
             if laddr:
-                self.srv_bind(laddr)
+                self.bind(laddr)
             if raddr:
                 self.connect(raddr)
             else:
@@ -231,13 +237,13 @@ class UDPConn(Conn):
 
         if conn_type == ConnType.LISTEN:
             if laddr:
-                self.srv_bind(laddr, reuse=False)
+                self.bind(laddr, reuse=False)
         elif conn_type == ConnType.CONNECT:
             # if we have a local address, we bind to it
             # if we have a remote addr we connect to it.
             # else we throw an error.
             if laddr:
-                self.srv_bind(laddr)
+                self.bind(laddr)
             if raddr:
                 self.connect(raddr)
             else:
@@ -415,7 +421,7 @@ def listen_tcp(laddr: TCPAddr, network = 'tcp'):
     else:
         raise UnknownNetworkError(network)
 
-def listen(address: str, network: str):
+def listen(address: str, network: str) -> Optional[Union[TCPListener, UDPConn]]:
     """ listen announces and waits for connections on a local network address.
 
     the network must be a "tcp", "tcp4", "tcp6", "udp", "udp4" or "udp6"

@@ -7,7 +7,8 @@ use this. I'm calling this `net` just like its parent package `net` golang.
 
 Requirements
 ------------
-*This is still in development* 
+__This is still in development__
+
 You need ``Python 3.9`` to try this library right now. It uses type hinting to help
 me develop faster and catch bug earlier in the development process.
 

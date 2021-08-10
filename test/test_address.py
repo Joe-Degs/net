@@ -31,6 +31,7 @@ class TestConfigInetAddr(unittest.TestCase):
         # family
         inet = socket.AF_INET
         inet6 = socket.AF_INET6
+        unix = socket.AF_UNIX
         unspec = socket.AF_UNSPEC
         # socktype
         stream = socket.SOCK_STREAM
@@ -46,7 +47,7 @@ class TestConfigInetAddr(unittest.TestCase):
         none = 0
 
     
-        def gen_config(host, port, family, socktype, proto, flags):
+        def gen_config(host, port, family, socktype, proto=none, flags=none):
             return {
                'host': host,
                'port': port,
@@ -56,27 +57,19 @@ class TestConfigInetAddr(unittest.TestCase):
                'flags': flags,
             }
 
-        tt = [
-            {
-                'args': ('localhost', '80', 'tcp'),
-                'want': gen_config('localhost', '80', inet, stream, tcp_ip,
-                    ai_addr)
-            },
-            {
-                'args': ('2001:db8::1', '53', 'udp6'),
+        tt = [{'args': ('localhost', '80', 'tcp'),
+                'want': gen_config('localhost', '80', inet, stream, tcp_ip, ai_addr)
+            },{'args': ('2001:db8::1', '53', 'udp6'),
                 'want': gen_config('2001:db8::1', '53', inet6, dgram, udp_ip,
                     ai_addr)
-            },
-            {
-                'args': ('localhost', '3939', ''),
+            },{'args': ('localhost', '3939', ''),
                 'want': gen_config('localhost', '3939', unspec, stream, none,
                     passive)
-            }
-        ]
+            },{'args': ('./test.sock', '', 'unix'),
+                'want': gen_config('./test.sock', '', unix, stream)
+            },{'args': ('./test.sock', '', 'unixgram'),
+                'want': gen_config('./test.sock', '', unix, dgram)}]
 
         for tc in tt:
-            args = tc['args']
-            self.assertEqual(
-                    config_inetaddr(args[0], args[1], args[2]).get_config(),
-                    tc['want']
-            )
+            self.assertEqual(config_inetaddr(*tc['args']).get_config(),
+                    tc['want'])

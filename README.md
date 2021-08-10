@@ -28,7 +28,6 @@ or help me learn more stuff about sockets. Its open to everybody and i want
 to make more friends so hit me up :>)
 
 # Usage
-
 This socket library currently supports `tcp`, `udp`, and `unix` sockets. It is relatively
 easy to start new socket clients and servers with this package. It doesnt really
 work like its golang muse but it kinda works and its a work in progress so its cool.
@@ -36,7 +35,7 @@ work like its golang muse but it kinda works and its a work in progress so its c
 Following are implementations of the echo server using this library.
 
 
-## Address Resolution and Other Address Related Stuff
+## Address Resolution
 This library is just a wrapper around sockets in python and it wraps around
 some of the important functions for address resolution and other address related
 stuff.
@@ -44,14 +43,13 @@ stuff.
 All the major sockets types "tcp", "udp" and "unix" sockets have equivalent address
 classes that end with `Addr` suffix and they all inherit from the toplevel `Addr` type.
 
-*i think i need a function to convert between `Addr` and  subclasses of `Addr`*
 
 So effectively, there are the following address types in this module:
     
         Addr, TCPAddr, UDPAddr, UnixAddr
 
 ### Resolving Addresses
-`net` uses the `socket.getaddrinfo` function to network and service names to
+`net` uses the `socket.getaddrinfo` function to resolve network and service names to
 ip addresses.
 
 ```python
@@ -75,11 +73,18 @@ the socket objects in python.
 
 The `Conn` subclasses in this module are:
 
-    UDPConn, TCPConn, TCPListener, UnixConn, UnixListener
+`UDPConn` provides a generic wrapper udp socket connections.
+`TCPConn` wraps around tcp socket connections.
+`UnixConn` wraps around unix domain socket connections.
 
-The types suffixed `Listener` wrap around sockets listeners that
-are stream oriented.
+This module is totally extensible and more socket connection protocols can be added, that's
+ like my plan for the future, use this module to play with enough socket protocols.
 
+There are also couple of types suffixed `Listener` and they are generic listeners for
+stream oriented protocols.
+
+`TCPListener` wraps around a tcp network listener socket
+`UnixListener` does what the above does for unix domain sockets.
 
 ### TCP Sockets
 TCP sockets are fully supported by this library.
@@ -118,3 +123,5 @@ The library supports both unix stream sockets and unix datagram sockets, both
 work on linux but i'm not sure about windows. I know unix stream sockets work on
 windows but maybe not the datagram sockets. So thread with caution.
 
+
+## TODO

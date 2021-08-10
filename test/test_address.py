@@ -1,5 +1,5 @@
 import unittest
-from net.address import *
+from net import *
 
 class TestSplitHostPort(unittest.TestCase):
     def test_host_port_split(self):

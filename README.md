@@ -48,8 +48,26 @@ classes that end with `Addr` suffix and they all inherit from the toplevel `Addr
 
 So effectively, there are the following address types in this module:
     
-        `Addr, TCPAddr, UDPAddr, UnixAddr`
+        Addr, TCPAddr, UDPAddr, UnixAddr
 
+### Resolving Addresses
+`net` uses the `socket.getaddrinfo` function to network and service names to
+ip addresses.
+
+```python
+# resolving tcp addresses
+gaddr = resolve_tcp_addr('google.com:www', 'tcp') # resolve network and service name to ip, port
+
+# resolving IPv6  udp addresses
+udp_addr = resolve_udp_addr('us.pool.ntp.org:ntp', 'udp6')
+
+# unix stream socket  addresses.
+unix_addr = resolve_tcp_addr('/tmp/test.sock', 'unix')
+
+# resolve unix datagram sockets.
+unixgram_addr = resolve_unix_addr('/tmp/test.sock2', 'unixgram')
+
+```
 
 ## Connections.
 `net` provides couple of classes with the `Conn` suffix that are the real wrappers around
@@ -57,7 +75,7 @@ the socket objects in python.
 
 The `Conn` subclasses in this module are:
 
-    `UDPConn, TCPConn, TCPListener, UnixConn, UnixListener`
+    UDPConn, TCPConn, TCPListener, UnixConn, UnixListener
 
 The types suffixed `Listener` wrap around sockets listeners that
 are stream oriented.

@@ -35,6 +35,7 @@ work like its golang muse but it kinda works and its a work in progress so its c
 
 Following are implementations of the echo server using this library.
 
+
 ## Address Resolution and Other Address Related Stuff
 This library is just a wrapper around sockets in python and it wraps around
 some of the important functions for address resolution and other address related
@@ -48,6 +49,7 @@ classes that end with `Addr` suffix and they all inherit from the toplevel `Addr
 So effectively, there are the following address types in this module:
     
         `Addr, TCPAddr, UDPAddr, UnixAddr`
+
 
 ## Connections.
 `net` provides couple of classes with the `Conn` suffix that are the real wrappers around

@@ -57,9 +57,9 @@ class Conn:
     beginners should try and play with the real socket api's provided by their
     os to really understand how this things work.
     """
-    def __init__(self, sock: socket.socket):
+    def __init__(self, sock):
         if sock:
-            assert(isinstance(sock, socket.socket), 'Not a socket object')
+            assert isinstance(sock, socket.socket), 'sock not a socket object'
         self.sock = sock
         # make the socket non blocking so it doesnt block the thread
         # self.sock.setblocking(False)
@@ -96,7 +96,7 @@ class Conn:
     def connect(self, addr):
         # connects underlying socket to addr.
         # addr is an instance of Addr or an instance of its subclass
-        assert(isinstance(addr, Addr))
+        assert isinstance(addr, Addr), 'addr not instance of Addr'
         self.sock.connect(addr.addrinfo)
 
     def bind(self, addr, reuse=True):
@@ -104,7 +104,7 @@ class Conn:
         # it sets socket option for address reuse.
         if reuse:
             self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        assert(isinstance(addr, Addr))
+        assert isinstance(addr, Addr), 'bind to a non Addr object'
         self.sock.bind(addr.addrinfo)
 
     def setblocking(self, flag: bool) -> None:
@@ -504,7 +504,7 @@ def dial_unix(laddr: Optional[UnixAddr], raddr: UnixAddr, network = 'unix'):
         raise UnknownNetworkError(network)
 
 def dial(address: str, network: str):
-    """dial connects to network the address endpoint
+    """dial connects to network on the address endpoint
 
     For TCP and UDP networks the address is of the form "host:port". The
     host must be a literal ip, a hostname that can be resolved to a literal
@@ -597,7 +597,7 @@ def listen_udp(laddr: UDPAddr, network = 'udp'):
     network: str
         the tcp network socket type to listen on.
     """
-    assert(isinstance(laddr, UDPAddr), 'laddr not a UDPAddr object')
+    assert isinstance(laddr, UDPAddr), 'laddr not a UDPAddr object'
     if net_is_valid('udp', network):
         config = _config_from_net(laddr, network)
         return UDPConn(laddr, None, ConnType.LISTEN, config.get_socket())
@@ -616,7 +616,7 @@ def listen_tcp(laddr: TCPAddr, network = 'tcp'):
     network:
         the tcp network socket type to listen on.
     """
-    assert(isinstance(laddr, TCPAddr), 'laddr not a TCPAddr object')
+    assert isinstance(laddr, TCPAddr), 'laddr not a TCPAddr object'
     if net_is_valid('tcp', network):
         config = _config_from_net(laddr, network)
         return TCPListener(laddr, config.get_socket())
@@ -639,7 +639,7 @@ def listen_unix(laddr: UnixAddr, network = 'unix'):
     network: str
         the unix network socket type to listen on.
     """
-    assert(isinstance(laddr, UnixAddr), 'laddr not a UnixAddr object')
+    assert isinstance(laddr, UnixAddr), 'laddr not a UnixAddr object'
     if net_is_valid('unix', network):
         config = _config_from_net(laddr, network)
         if network == 'unix':

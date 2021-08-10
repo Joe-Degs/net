@@ -119,9 +119,35 @@ while True:
 ```
 
 ### Unix domain sockets
-The library supports both unix stream sockets and unix datagram sockets, both
-work on linux but i'm not sure about windows. I know unix stream sockets work on
-windows but maybe not the datagram sockets. So thread with caution.
 
+#### unix stream sockets
+```python
+import net
 
+def handler(conn):
+    buf = conn.read() # read some bytes from connection
+    n = conn.write(buf) # write the bytes back into connection
+    assert(len(buf), n)
+
+# an unix socket server on localhost.
+unix_addr = net.resolve_unix_addr('/tmp/test.sock', 'unix')
+unix_srv = net.listen_unix(unix_addr, 'unix')
+unix_srv.set_unlink_on_close(True)
+while True:
+    unix_client = unix_srv.accept()
+    handler(unix_client)      
+```
+
+#### unix datagram sockets.
+```python
+import net
+
+# unixgram socket server on localhost
+unixgram_addr = net.resolve_unixgram_addr('/tmp/test.sock2', 'unixgram')
+unixgram_srv = net.listen_unixgram(unixgram_addr, 'unixgram')
+while True:
+    buf, raddr = unixgram_srv.read_from() # wait and read from connection
+    n = unixgram_srv.write_to(buf, raddr) # write data back to sender
+    assert(len(buf), n)
+```
 ## TODO

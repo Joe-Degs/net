@@ -85,7 +85,8 @@ stream oriented protocols.
 - `UnixListener` does what the above does for unix domain sockets.
 
 ### TCP Sockets
-TCP sockets are fully supported by this library.
+
+#### server
 ```python
 
 import net
@@ -93,7 +94,7 @@ import net
 def handler(conn):
     buf = conn.read() # read some bytes from connection
     n = conn.write(buf) # write the bytes back into connection
-    assert(len(buf), n)
+    assert(len(buf) == n)
 
 # an IPv6 tcp socket server on localhost.
 tcp_addr = net.resolve_tcp_addr('localhost:5055', 'tcp6')
@@ -103,7 +104,20 @@ while True:
     handler(tcp_client)      
 ```
 
+#### client
+```python
+import net
+
+raddr = net.resolve_tcp_addr('localhost:5055', 'tcp6') # get remote endpoint address
+tcp_client = net.dial_tcp(None, raddr, 'tcp6') # connect to remote endpoint
+n = tcp_client.write(b'some random data')
+buf = tcp_client.read()
+assert(n == len(buf))
+```
+
 ### UDP Sockets
+
+#### server
 ```python
 import net
 
@@ -113,7 +127,19 @@ udp_srv = net.listen_udp(udp_addr, 'udp')
 while True:
     buf, raddr = udp_srv.read_from() # wait and read from connection
     n = udp_srv.write_to(buf, raddr) # write data back to sender
-    assert(len(buf), n)
+    assert(len(buf) == n)
+```
+
+#### client
+```python
+import net
+
+laddr = net.resolve_udp_addr('localhost:5055', 'udp')    # get local endpoint address
+srv_addr = net.resolve_udp_addr('localhost:5056', 'udp') # get remote endpoint address
+client_conn = net.dial_udp(laddr, None, 'udp')           # bind to local address
+n = client_conn.write_to(b'some random data', srv_addr)  # write data to remote endpoint
+buf = client_conn.read_from()
+assert(n == len(buf))
 ```
 
 ### Unix domain sockets
@@ -125,7 +151,7 @@ import net
 def handler(conn):
     buf = conn.read() # read some bytes from connection
     n = conn.write(buf) # write the bytes back into connection
-    assert(len(buf), n)
+    assert(len(buf) == n)
 
 # an unix socket server on localhost.
 unix_addr = net.resolve_unix_addr('/tmp/test.sock', 'unix')
@@ -135,6 +161,18 @@ while True:
     unix_client = unix_srv.accept()
     handler(unix_client)      
 ```
+
+#### unix stream socket client
+```python
+import net
+
+raddr = net.resolve_unix_addr('/tmp/test.sock', 'unix6') # get remote endpoint address
+unix_client = net.dial_unix(None, raddr, 'unix6') # connect to remote endpoint
+n = unix_client.write(b'some random data')
+buf = unix_client.read()
+assert(n == len(buf))
+```
+
 
 #### unix datagram sockets.
 ```python
@@ -146,6 +184,18 @@ unixgram_srv = net.listen_unixgram(unixgram_addr, 'unixgram')
 while True:
     buf, raddr = unixgram_srv.read_from() # wait and read from connection
     n = unixgram_srv.write_to(buf, raddr) # write data back to sender
-    assert(len(buf), n)
+    assert(len(buf) == n)
+```
+
+#### unix datagram socket client
+```python
+import net
+
+laddr = net.resolve_unix_addr('/tmp/test.sock3', 'unixgram')    # get local endpoint address
+srv_addr = net.resolve_unix_addr('/tmp/test.sock2', 'unixgram') # get remote endpoint address
+client_conn = net.dial_unix(laddr, None, 'unixgram')           # bind to local address
+n = client_conn.write_to(b'some random data', srv_addr)  # write data to remote endpoint
+buf = client_conn.read_from()
+assert(n == len(buf))
 ```
 ## TODO

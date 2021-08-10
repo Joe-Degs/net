@@ -198,4 +198,34 @@ n = client_conn.write_to(b'some random data', srv_addr)  # write data to remote 
 buf = client_conn.read_from()
 assert(n == len(buf))
 ```
+
+### Testing
+The package contains a `test` directory that holds all the tests for the package. test
+coverage for now is not good at all, only a couple of functions in the `net/address.py`
+have tests and that is not acceptable but i'm still figuring the whole things out so
+i'm not so worried now.
+To run the scanty tests i have;
+
+    $ python -m unittest discover -s test -v
+
+For manual testing which is common with sockets, i have bunch of scripts in the root direcotry
+that are just good for doing that. There is a `testnet.sh` bash script that used socat
+to test echo socket servers.
+
+The `testnet.sh` supports testing all the socket types in the package.
+    
+    testnet.sh <options>
+
+    -n          network type to connect to. supported is  "unix-client", "unix-connect",
+                "tcp", "tcp6", "udp" and "udp6". It can a space separated string of
+                multiple network types.
+
+    -all        connect to all the network types supported.
+
+    -a          the address to connect to in "ip:port" format
+
+    -u          the unix address to connect in the case of unix domain sockets.
+
+    -t | -f     -t text to write into socket | -f path of file to write into socket.
+
 ## TODO

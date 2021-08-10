@@ -37,8 +37,9 @@ spawning a tcp server on localhost is as simple as
         n = conn.write(buf) # write the bytes back into connection
         assert(len(buf), n)
 
-    tcp_addr = net.resolve_tcp_addr('localhost:5055', 'tcp')
-    tcp_srv = net.listen_tcp(tcp_addr, 'tcp')
+    # an IPv6 tcp socket server on localhost.
+    tcp_addr = net.resolve_tcp_addr('localhost:5055', 'tcp6')
+    tcp_srv = net.listen_tcp(tcp_addr, 'tcp6')
     while True:
         tcp_client = tcp_srv.accept()
         handler(tcp_client)

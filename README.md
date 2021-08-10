@@ -201,7 +201,7 @@ assert(n == len(buf))
 
 ### Testing
 The package contains a `test` directory that holds all the tests for the package. test
-coverage for now is not good at all, only a couple of functions in the `net/address.py`
+coverage for now is not good at all, only a couple of functions in `net/address.py`
 have tests and that is not acceptable but i'm still figuring the whole things out so
 i'm not so worried now.
 To run the scanty tests i have;

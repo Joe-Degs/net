@@ -71,7 +71,7 @@ unixgram_addr = resolve_unix_addr('/tmp/test.sock2', 'unixgram')
 `net` provides couple of classes with the `Conn` suffix that are the real wrappers around
 the socket objects in python.
 
-The `Conn` subclasses in this module are:
+The `Conn` subclasses wrap around the various socket protocols, the ones implemented are;
 - `UDPConn` provides a generic wrapper udp socket connections.
 - `TCPConn` wraps around tcp socket connections.
 - `UnixConn` wraps around unix domain socket connections.

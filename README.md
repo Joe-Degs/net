@@ -42,6 +42,5 @@ spawning a tcp server on localhost is as simple as
     tcp_srv = net.listen_tcp(tcp_addr, 'tcp6')
     while True:
         tcp_client = tcp_srv.accept()
-        handler(tcp_client)
-        
+        handler(tcp_client)      
 ```

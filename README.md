@@ -216,9 +216,15 @@ The `testnet.sh` supports testing all the socket types in the package.
     
     testnet.sh <options>
 
-    -n          network type to connect to. supported is  "unix-client", "unix-connect",
-                "tcp", "tcp6", "udp" and "udp6". It can a space separated string of
-                multiple network types.
+    -n          network type to connect to. supported is  
+                "unix-client" -> connect to unix datagram socket 
+                "unix-connect" -> connect to unix stream socket
+                "tcp" -> IPv4 tcp socket connect
+                "tcp6" -> IPv6 tcp socket connect
+                "udp" -> IPv4 udp socket connect 
+                "udp6" -> IPv6 udp socket connect
+                this option can be supplied as a  space separated string of multiple 
+                supported network types.
 
     -all        connect to all the network types supported.
 

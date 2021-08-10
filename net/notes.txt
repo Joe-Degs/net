@@ -113,7 +113,6 @@ something fun. Installed debian in a virtual machine, removed the desktop
 environment, installed i3wm and now i'm writing this from this lean, 
 mean and bad motherfucker :). Now how do we solve this mistery.????
 
-
     - i thought about defining a message structure for the sockets. this
       structure will contain the length of the message been recieved or sent
       amidst other things, so when we reading we read till the length of the
@@ -134,7 +133,6 @@ mean and bad motherfucker :). Now how do we solve this mistery.????
       to handle them as such, but i absolutely do not want that, so i think
       i'll try the non blocking socket first then move on from there.
 
-
     - so agenda for today, implement the non blocking logic first then test 
       and move on to do the timeouts and see which one works best.
       the message structure one doesn't seem like a smart idea so i'll put
@@ -146,3 +144,73 @@ mean and bad motherfucker :). Now how do we solve this mistery.????
       and timeout are definitely not the way to go.
       if the non blocking thing doesn't work out i'll have to find a more
       innovative way to do the reads without blocking.
+
+August 4, 2021
+--------------
+So today, is holiday and exams is drawing near but i can't seem to let this
+project rest and pick up my notes to study. That's because the notes are a
+load of crap and this is the real deal. LOL!
+So what i'm doing today.
+
+    - turns out the non blocking socket idea just like the other ones is not
+      an intuitive idea and seems like i'm trying to solve a problem i shd
+      not be solving in the first place. Socket reads block and that is not
+      a problem, if a user wants an non blocking socket they have to create
+      one themselves. The only other option i have is to present a io stream
+      interface that you can pluck the sockets into and it will do the 
+      reliable reads for you using maybe timeouts or some other mechanism.
+      I'll have to look at how golang io stream package does this and learn
+      a thing or two about creating reliable io streams. i've always loved
+      loopy things so this should not be a problem.
+
+    - I'm also trying to make the thing work on linux first. Then i'll
+      concentrate on making it work on windows. I'm in my debian virtual
+      machine at the moment and coding in linux again is pretty cool.7
+
+August 7, 2021
+--------------
+Ermm pretty slow day today, yesterday our exams that was supposed to start
+on monday got suspended indefinitely because our lecturers are on strike
+and fuck i'm still celebrating. LOL!
+So today i just felt like adding the unix and unixgram sockets to the project/.
+Now, i don't really know what i'll use this for at the moment but it sounds
+like a fun thing to do this weekend so, yeah i'm spending my time to dabble
+in unix sockets
+    
+    - So recap from last time, i finally came to a conclusion that might be the
+      but i'm ready to live with it, chaley!. I have accepted the read/recv
+      blocking forever as a feature and not a bug. The only way a socket
+      read/recv unblocks is if it reads an eof or the remote connection gets
+      closed, so that about it. Shutdown writes if you want the remote socket
+      to not waste its time waiting for data to come in so it'll read.
+
+    - so as i said, today, i'm doing some unix domain sockets things, i don't
+      really know if that stuff works on windows. (lemme do a quick google
+      search). So windows has supported unix domain sockets since like 2017
+      or something. By now i think there's like perfect support for it or
+      something. That sounds nice, I'm going to start doing on linux right
+      now see how it goes before entering it into the main package.
+
+
+August 10, 2021
+---------------
+I'm done with adding unix domain sockets to the package. I'm now working on
+adding a good readme to the package that explains what the module is all
+about to a first timer. And i'm getting couple of idea's  i wanna put down
+
+    - Conn and Addr is like a generic interface for all the other types in the
+      package and i want to keep them like that just interfaces. I want to 
+      provide a generic way to convert their subclasses and the generic
+      interfaces. Like a way to convert Conn to a UDPConn and the rest.
+
+    - And for Addr, i want a way to convert between different address types.
+      just like the way casting is done in golang. So basically a method that
+      does the casting between types. An example will be casting a TCPAddr to
+      addr or casting an Addr type to an Addr.
+
+    - Now i kind of think i need a Listener interface of some sort. Because
+      the listener's i have now inherit from subclasses of Conn and that is
+      not cool because they have  like the read methods and all that stuff.
+
+    - If i get a listener interface then i can also consider casting from 
+      subclasses of Listener to Listener which will be sweet.

@@ -57,15 +57,19 @@ class Conn:
     beginners should try and play with the real socket api's provided by their
     os to really understand how this things work.
     """
-    def __init__(self, sock):
+    def __init__(self, sock, laddr=None):
         if sock:
-            assert isinstance(sock, socket.socket), 'sock not a socket object'
+            assert isinstance(sock, socket.socket), 'socket not a socket object'
+
+        if addr:
+            assert isinstance(laddr, Addr), 'address not an Addr object'
+
         self.sock = sock
         # make the socket non blocking so it doesnt block the thread
         # self.sock.setblocking(False)
 
         # local and remote address of the socket connection.
-        self.laddr = None
+        self.laddr = laddr
         self.raddr = None
         
         # create a buffered read, the socket object for buffered
@@ -132,6 +136,59 @@ class Conn:
         self.shutdown()
         self.sock.close()
         self.__conn.close()
+
+class Listener:
+    """Listener in experimental phase.
+    work getting started on the generic wrapper around stream oriented
+    listening protocols.
+
+    this is been done because i do not want the listening sockets inheriting
+    methods from the normal Conn objects.
+
+    the golang net interface has the following methods that i'll implement
+    first on the socket. accept, close, addr.
+
+    testing all my new ideas out here to see how they work for now. I have the 
+    casting interface and almost done with the Listener thing. save for testing
+    it with real socket connections and things.
+
+    i am also things
+    """
+    def __init__(self, addr, sock):
+        if sock:
+            assert isinstance(sock, socket.socket), 'sock not a socket object'
+        if addr:
+            assert isinstance(addr, Addr), 'addr is not an Addr object'
+        self.sock = sock
+        self.laddr = addr
+        # bind to address and set socket options.
+        # consider redoing this socket options into something
+        # like how AddrConfig is.
+        self.sock.bind(self.laddr.addrinfo)
+        # do the socket.listen
+        self.sock.listen(socket.SOMAXCONN)
+
+    def accept(self) -> Conn:
+        """accept waits for and returns the next connection to the listener"""
+        sock, addrinfo = self.sock.accept()
+        return Conn(sock, Addr(addrinfo))
+
+    def addr(self) -> Addr:
+        """addr returns the listeners address"""
+        if self.laddr:
+            return self.laddr
+        self.laddr = Addr(self.sock.getsockname())
+        return self.laddr
+
+    def to_listen(self, listen_type):
+        """cast generic listener to a specific listener
+        """
+        assert issubclass(listen_type, Listener), \
+                'listener type not subclass of Listener'
+        return listen_type(self.laddr, self.sock)
+        
+    def close(self):
+        self.sock.close()
 
 class ConnType(Enum):
     """ConnType represents the type of socket connection to initiate

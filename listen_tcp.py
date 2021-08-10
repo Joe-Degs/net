@@ -1,8 +1,7 @@
 import sys
-from net import address as addr
-from net import conn
+import net
 
-def handle_conn(c: conn.TCPConn):
+def handle_conn(c: net.TCPConn):
     print(f'recieved connection from {c.remote_addr()}')
     b = c.read(1024)
     print('in listens handle conn after reading')
@@ -18,8 +17,8 @@ this should be a straightforward thing on every platform.
 """
 
 def use_listen_tcp(address, network):
-    laddr = addr.resolve_tcp_addr(address, network)
-    lstn = conn.listen_tcp(laddr, network)
+    laddr = net.resolve_tcp_addr(address, network)
+    lstn = net.listen_tcp(laddr, network)
     # lstn.settimeout(20.0)
     print(f'listening and serving tcp on {lstn.local_addr()}')
     while True:

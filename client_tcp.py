@@ -1,6 +1,5 @@
 import sys
-from net import address as addr
-from net import conn
+import net
 
 def handle_conn(c):
     print(f'local_addr: {c.local_addr()} | remote_addr: {c.remote_addr()}')
@@ -19,16 +18,16 @@ def handle_conn(c):
     c.close()
 
 def use_dial(address, network):
-    tcp_client = conn.dial(address, network)
+    tcp_client = net.dial(address, network)
     # tcp_client.settimeout(20)
     handle_conn(tcp_client)
 
 def use_dial_tcp(addr, addr2, network):
     laddr = None
     if addr:
-        laddr = addr.resolve_tcp_addr(addr, network)
-    raddr = addr.resolve_tcp_addr(addr2, network)
-    tcp_client = conn.dial_tcp(laddr, raddr, network)
+        laddr = net.resolve_tcp_addr(addr, network)
+    raddr = net.resolve_tcp_addr(addr2, network)
+    tcp_client = net.dial_tcp(laddr, raddr, network)
     handle_conn(tcp_client)
 
 

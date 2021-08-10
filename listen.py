@@ -1,6 +1,5 @@
 import sys
-from net import address as addr
-from net import conn
+import net
 
 def printlen(b):
     print(f'------ read {len(b)} from the connections ------')
@@ -22,16 +21,16 @@ def handle_streams(c):
 
 def use_listen(address, network):
     try:
-        lstn = conn.listen(address, network)
+        lstn = net.listen(address, network)
         # lstn.settimeout(20.0)
         print(f'listening and serving {network} on {lstn.local_addr()}')
         while True:
             if network == 'unix':
                 lstn.unlink_on_close(True)
-            if addr.net_is_valid('tcp', network) or network == 'unix':
+            if net.net_is_valid('tcp', network) or network == 'unix':
                 nc = lstn.accept()
                 handle_streams(nc)
-            elif addr.net_is_valid('udp', network) or network == 'unixgram':
+            elif net.net_is_valid('udp', network) or network == 'unixgram':
                 handle_grams(lstn)
             else:
                 print('Invalid network i guess')

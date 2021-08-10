@@ -1,10 +1,9 @@
-from net import address as addr
-from net import conn
 import sys
+import net
 
 def udp_srv(laddr, network):
-	laddr = addr.resolve_udp_addr(laddr, network)
-	c = conn.listen_udp(laddr, network)
+	laddr = net.resolve_udp_addr(laddr, network)
+	c = net.listen_udp(laddr, network)
 	print(f'udp server on {c.local_addr()}')
 	while True:
 		b, naddr = c.read_from()

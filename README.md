@@ -19,7 +19,28 @@ To use this you have to pull from github:
     
     $ git clone https://github.com/Joe-Degs/net.git
 
+# Usage
+This socket library currently supports `tcp`, `udp`, and `unix` sockets. It is relatively
+easy to start new socket clients and servers with this package. It doesnt really
+work like its golang muse but it kinda works and its a work in progress so its cool.
 
+Following are implementations of the echo server using this library.
 
+### tcp server
+spawning a tcp server on localhost is as simple as
+```python
 
+    import net
 
+    def handler(conn):
+        buf = conn.read() # read some bytes from connection
+        n = conn.write(buf) # write the bytes back into connection
+        assert(len(buf), n)
+
+    tcp_addr = net.resolve_tcp_addr('localhost:5055', 'tcp')
+    tcp_srv = net.listen_tcp(tcp_addr, 'tcp')
+    while True:
+        tcp_client = tcp_srv.accept()
+        handler(tcp_client)
+        
+```

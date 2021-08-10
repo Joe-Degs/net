@@ -7,23 +7,23 @@ from  .errors import *
 class Addr:
     """Addr is a generic wrapper around socket addresses
 
-    socket addresses are gotten either from socket.getaddrinfo or
-    they are returned from reading from udp sockets.
-    specific address types maybe derived from this class and the str
+    socket addresses are gotten either from socket.getaddrinfo,
+    returned from recvfrom functions or user entered.
+    specific address types are derived from this class and the str
     function implemented to suit the conventional string representation
-    of address type.
+    of that address type.
 
     Attributes
     ----------
-    addrinfo: tuple
+    addrinfo: object
         a socket address
     """
-    def __init__(self, addrinfo: tuple):
+    def __init__(self, addrinfo):
         """
         Parameters
         -----------
-        addrinfo: tuple
-            The addrinfo is the tuple that is returned by socket.getaddrinfo
+        addrinfo: object
+            The addrinfo socket address that is returned by socket.getaddrinfo
             or is returned as a socket address from any socket connection.
 
         network: str, optional
@@ -37,7 +37,7 @@ class Addr:
         # return a string representation of addrinfo. The representation
         # is different for different socket connection types so
         # the individual addr classes should implement their own.
-        return f'{self.addrinfo[0]}:{self.addrinfo[1]}'
+        return repr(self.addrinfo)
 
     def __repr__(self) -> str:
         return self.__str__()
@@ -111,6 +111,20 @@ class UDPAddr(IPAddr):
     def __str__(self):
         return join_host_port(str(self.ipaddr), self.port)
 
+class UnixAddr(Addr):
+    """UnixAddr represents the address of a unix domain socket endpoint
+
+    Parameters
+    ----------
+    addrinfo: string
+        filepath of the socket file used for communication.
+    """
+    def __init__(self, addrinfo):
+        Addr.__init__(self, addrinfo)
+
+    def __str__(self):
+        return self.addrinfo
+
 class AddrConfig:
     """AddrConfig is used to configure parameters for address resolution.
 
@@ -157,8 +171,11 @@ class AddrConfig:
 
     def get_socket(self) -> socket.socket:
         # return the network socket with the parameters set in the config.
+        proto = -1
+        if self.__addr_config['proto']:
+            proto = self.__addr_config['proto']
         return socket.socket(self.__addr_config['family'],
-                self.__addr_config['socktype'], self.__addr_config['proto'])
+                self.__addr_config['socktype'], proto)
 
 def join_host_port(host: str, port: str = '') -> str:
     """join_host_port combines host and port into into representation format
@@ -257,6 +274,9 @@ def net_is_valid(network: str, net: str) -> bool:
     elif 'ip' == network:
         return True if net == 'ip' or net == 'ip4' \
                 or net == 'ip6' else False
+    elif 'unix' == network:
+        return True if net == 'unix' or net == 'unixgram' \
+                else False
     else:
         return False
 
@@ -332,14 +352,22 @@ def config_inetaddr(host: str, port: str, network: str) -> AddrConfig:
     if network:
         # if we have a network to connect to, we want
         # addresses we can reach.
-        config.add_flag(socket.AI_ADDRCONFIG)
         if net_is_valid('udp', network):
             config.set_socktype(socket.SOCK_DGRAM)
+            config.add_flag(socket.AI_ADDRCONFIG)
             config.set_proto(socket.IPPROTO_UDP)
             return config
         elif net_is_valid('tcp', network):
             config.set_socktype(socket.SOCK_STREAM)
+            config.add_flag(socket.AI_ADDRCONFIG)
             config.set_proto(socket.IPPROTO_TCP)
+            return config
+        elif net_is_valid('unix', network):
+            config.set_family(socket.AF_UNIX)
+            if network == 'unixgram':
+                config.set_socktype(socket.SOCK_DGRAM)
+            elif network == 'unix':
+                config.set_socktype(socket.SOCK_STREAM)
             return config
         else:
             raise UnknownNetworkError(network)
@@ -456,6 +484,22 @@ def resolve_ip_addr(address: str, network: str = 'ip'):
     # exams.
     pass
 
+def resolve_unix_addr(address: str, network: str) -> UnixAddr:
+    """resolve_unix_addr returns the address of unix domain socket endpoint
+
+    Parameters
+    ----------
+    address: string
+        path to the unix socket file
+
+    network: str
+        a unix network name
+    """
+    if net_is_valid('unix', network):
+        return UnixAddr(address)
+    else:
+        raise UnknowNetworkError(network)
+
 def resolve_addr(address: str, network: str):
     """
     resolve_addr returns an address that you can connect to, sendto or
@@ -489,6 +533,8 @@ def resolve_addr(address: str, network: str):
         resolve_addr("[2001:db8::1]:53", "udp") -> UDPAddr
         resolve_addr(":80", "tcp6") -> TCPAddr
 
+    For unix sockets the address must be file system path
+
     Parameters
     ----------
     address: str, optional
@@ -513,5 +559,7 @@ def resolve_addr(address: str, network: str):
         return resolve_udp_addr(address, network)
     elif net_is_valid('ip', network):
         return resolve_ip_addr(address, network)
+    elif net_is_valid('unix', network):
+        return resolve_udp_addr(address,network)
     else:
         raise UnknownNetworkError(network)

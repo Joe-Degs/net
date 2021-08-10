@@ -214,3 +214,16 @@ about to a first timer. And i'm getting couple of idea's  i wanna put down
 
     - If i get a listener interface then i can also consider casting from 
       subclasses of Listener to Listener which will be sweet.
+
+    - I am done with the readme for the package on github, and it is kinda cool
+      i'll add more things as i go on but now, its time to concentrate on the
+      casting thing and the Listener interface for stream oriented protocols.
+
+    - I feel like starting work on the casting thing or the Listener interface
+      but don't really know which to do first. I do not know which is the most
+      convenient one and most of all which is the best one to tackle first.
+
+    - done for today, Listener thing is almost done, the casting is been tested
+      on the Listener first to see how it goes then it will be considered for the
+      other packages as well. Cheers amigo go and sleep you are tired.
+      But first lets binge on an hour of Friends... :>)

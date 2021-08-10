@@ -72,19 +72,17 @@ unixgram_addr = resolve_unix_addr('/tmp/test.sock2', 'unixgram')
 the socket objects in python.
 
 The `Conn` subclasses in this module are:
-
-`UDPConn` provides a generic wrapper udp socket connections.
-`TCPConn` wraps around tcp socket connections.
-`UnixConn` wraps around unix domain socket connections.
+- `UDPConn` provides a generic wrapper udp socket connections.
+- `TCPConn` wraps around tcp socket connections.
+- `UnixConn` wraps around unix domain socket connections.
 
 This module is totally extensible and more socket connection protocols can be added, that's
  like my plan for the future, use this module to play with enough socket protocols.
 
 There are also couple of types suffixed `Listener` and they are generic listeners for
 stream oriented protocols.
-
-`TCPListener` wraps around a tcp network listener socket
-`UnixListener` does what the above does for unix domain sockets.
+- `TCPListener` wraps around a tcp network listener socket
+- `UnixListener` does what the above does for unix domain sockets.
 
 ### TCP Sockets
 TCP sockets are fully supported by this library.

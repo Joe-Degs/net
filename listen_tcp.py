@@ -4,9 +4,10 @@ from net import conn
 
 def handle_conn(c: conn.TCPConn):
     print(f'recieved connection from {c.remote_addr()}')
-    b = c.read()
+    b = c.read(1024)
+    print('in listens handle conn after reading')
     c.write(b)
-    print(f'read and wrote bytes of len {len(b)} to client connection\n message: {b.decode("utf8")}')
+    print(f'read and wrote msg: {b.decode("utf8")} of len {len(b)} bytes to client connection')
     c.close()
 
 """
@@ -17,18 +18,10 @@ this should be a straightforward thing on every platform.
 """
 
 def use_listen_tcp(address, network):
-    laddr = addr.resolve_addr(address, network)
+    laddr = addr.resolve_tcp_addr(address, network)
     lstn = conn.listen_tcp(laddr, network)
-    lstn.settimeout(20.0)
-    print(f'listening and serving on {lstn.local_addr()}')
-    while True:
-        tcp_conn = lstn.accept()
-        handle_conn(tcp_conn)
-
-def use_listen(address, network):
-    lstn = conn.listen(address, net)
-    lstn.settimeout(20.0)
-    print(f'listening and serving on {lstn.local_addr()}')
+    # lstn.settimeout(20.0)
+    print(f'listening and serving tcp on {lstn.local_addr()}')
     while True:
         tcp_conn = lstn.accept()
         handle_conn(tcp_conn)
@@ -42,8 +35,4 @@ def main():
     use_listen_tcp(args[0], args[1])
 
 if __name__ == '__main__':
-    try:
-        main()
-    except KeyboardInterrupt:
-        print('^C')
-        sys.exit(0)
+    main()

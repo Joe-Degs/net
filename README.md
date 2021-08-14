@@ -60,7 +60,7 @@ gaddr = resolve_tcp_addr('google.com:www', 'tcp') # resolve network and service 
 udp_addr = resolve_udp_addr('us.pool.ntp.org:ntp', 'udp6')
 
 # unix stream socket  addresses.
-unix_addr = resolve_tcp_addr('/tmp/test.sock', 'unix')
+unix_addr = resolve_unix_addr('/tmp/test.sock', 'unix')
 
 # resolve unix datagram sockets.
 unixgram_addr = resolve_unix_addr('/tmp/test.sock2', 'unixgram')

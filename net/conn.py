@@ -39,6 +39,18 @@ class _SocketWriter(io.BufferedIOBase):
 
 RECV_MAX = 0xffff
 
+class ConnType(Enum):
+    """ConnType represents the type of socket connection to initiate
+
+    Possible options are;
+    LISTEN => to create listening sockets
+    CONNECT => create sockets that are used connect to a remote endpoint
+    REMOTE => a socket connection recieved from a listening socket.
+    """
+    LISTEN = 0b01
+    REMOTE = 0b10
+    CONNECT = 0b11
+
 class Conn:
     """Conn is a generic wrapper around socket objects.
 
@@ -154,7 +166,7 @@ class Listener:
 
     i am also things
     """
-    def __init__(self, addr, sock):
+    def __init__(self, addr, sock, conn_type = ConnType.REMOTE):
         if sock:
             assert isinstance(sock, socket.socket), 'sock not a socket object'
         if addr:
@@ -164,9 +176,10 @@ class Listener:
         # bind to address and set socket options.
         # consider redoing this socket options into something
         # like how AddrConfig is.
-        self.sock.bind(self.laddr.addrinfo)
-        # do the socket.listen
-        self.sock.listen(socket.SOMAXCONN)
+        if conn_type == ConnType.LISTEN:
+            self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            self.sock.bind(self.laddr.addrinfo)
+            self.sock.listen(socket.SOMAXCONN)
 
     def accept(self) -> Conn:
         """accept waits for and returns the next connection to the listener"""
@@ -180,7 +193,7 @@ class Listener:
         self.laddr = Addr(self.sock.getsockname())
         return self.laddr
 
-    def to_listen(self, listen_type):
+    def from_listener(self, listen_type):
         """cast generic listener to a specific listener
         """
         assert issubclass(listen_type, Listener), \
@@ -189,18 +202,6 @@ class Listener:
         
     def close(self):
         self.sock.close()
-
-class ConnType(Enum):
-    """ConnType represents the type of socket connection to initiate
-
-    Possible options are;
-    LISTEN => to create listening sockets
-    CONNECT => create sockets that are used connect to a remote endpoint
-    REMOTE => a socket connection recieved from a listening socket.
-    """
-    LISTEN = 0b01
-    REMOTE = 0b10
-    CONNECT = 0b11
 
 class TCPConn(Conn):
     """TCPConn is tcp socket wrapper.

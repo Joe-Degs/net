@@ -1,20 +1,21 @@
 # Summary
-This is a sockets networking library of sorts written in python for learning
-the basics of socket programming, it follows some of the design principles
-of the golang net package. If you want to test sockets and do some other
-sockets related scripting and don't want to deal with os api's and other stuff
-use this. I'm calling this `net` just like its parent package `net` golang.
+This is a python networking module of sorts written as a project for learning
+the basics of socket programming. It follows some of the design principles
+of the golang net package. If you want to do network testing/scripiting and other
+sockets related scripting but don't want to deal with os api's and other stuff,
+this module could be useful for you. 
+I'm calling this `net` just like its parent package `net` in golang.
 
 It is essentially just a wrapper around python socket objects and might not be
-good for any kind of production work but for testing and fast scripting for
-maybe ctf's and all the other kind of script kiddie stuff, this will do.
+useful for any kind of production work but for testing and any kind of network
+scripting that is not production related this could be used.
 
 Requirements
 ------------
 __This is still in development__
 
-You need ``Python 3.9`` to try this library right now. It uses type hinting to help
-me develop faster and catch bug earlier in the development process.
+You need `Python 3.9` to try this library right now. It uses type hinting to help
+me develop faster and catch type bugs early in the development process.
 
 It works well on Linux and it kinda works on Windows too. I haven't really
 tested it on windows for some time now.
@@ -32,21 +33,18 @@ This socket library currently supports `tcp`, `udp`, and `unix` sockets. It is r
 easy to start new socket clients and servers with this package. It doesnt really
 work like its golang muse but it kinda works and its a work in progress so its cool.
 
-Following are implementations of the echo server using this library.
-
+The code examples are implementations of a simple echo server and their clients using this module.
 
 ## Address Resolution
-This library is just a wrapper around sockets in python and it wraps around
-some of the important functions for address resolution and other address related
-stuff.
+This module is just a wrapper around python socket objects and it also wraps around
+some of the important functions for address resolution and other networking related stuff.
 
-All the major sockets types "tcp", "udp" and "unix" sockets have equivalent address
+All the major sockets types `tcp`, `udp` and `unix` sockets have their equivalent address
 classes that end with `Addr` suffix and they all inherit from the toplevel `Addr` type.
 
-
-So effectively, there are the following address types in this module:
+There are the following address types in this module:
     
-        Addr, TCPAddr, UDPAddr, UnixAddr
+        Addr(base class), TCPAddr, UDPAddr, UnixAddr
 
 ### Resolving Addresses
 `net` uses the `socket.getaddrinfo` function to resolve network and service names to
@@ -54,30 +52,30 @@ ip addresses.
 
 ```python
 # resolving tcp addresses
-gaddr = resolve_tcp_addr('google.com:www', 'tcp') # resolve network and service name to ip, port
+goggle = resolve_tcp_addr('google.com:www', 'tcp') # resolve network and service name to ip, port
 
 # resolving IPv6  udp addresses
-udp_addr = resolve_udp_addr('us.pool.ntp.org:ntp', 'udp6')
+ntp_udp_addr = resolve_udp_addr('us.pool.ntp.org:ntp', 'udp6')
 
 # unix stream socket  addresses.
 unix_addr = resolve_unix_addr('/tmp/test.sock', 'unix')
 
 # resolve unix datagram sockets.
 unixgram_addr = resolve_unix_addr('/tmp/test.sock2', 'unixgram')
-
 ```
 
 ## Connections.
-`net` provides couple of classes with the `Conn` suffix that are the real wrappers around
-the socket objects in python.
+`net` provides couple of classes with the `Conn` suffix that are wrappers around
+socket objects in python.
 
-The `Conn` subclasses wrap around the various socket protocols, the ones implemented are;
-- `UDPConn` provides a generic wrapper udp socket connections.
-- `TCPConn` wraps around tcp socket connections.
-- `UnixConn` wraps around unix domain socket connections.
+The `Conn` subclasses wrap around python socket objects for different protocols, 
+the ones implemented are;
+- `UDPConn` provides a generic wrapper udp socket objects.
+- `TCPConn` wraps around tcp socket objects.
+- `UnixConn` wraps around unix domain socket objects.
 
-This module is totally extensible and more socket connection protocols can be added, that's
- like my plan for the future, use this module to play with enough socket protocols.
+This module is totally extensible and more network protocols can be added and that is
+ the plan for the future, to use this module to play with as much network protocols as I can.
 
 There are also couple of types suffixed `Listener` and they are generic listeners for
 stream oriented protocols.
@@ -88,7 +86,6 @@ stream oriented protocols.
 
 #### server
 ```python
-
 import net
 
 def handler(conn):
@@ -159,7 +156,7 @@ unix_srv = net.listen_unix(unix_addr, 'unix')
 unix_srv.set_unlink_on_close(True)
 while True:
     unix_client = unix_srv.accept()
-    handler(unix_client)      
+    handler(unix_client)
 ```
 
 #### unix stream socket client
@@ -201,10 +198,10 @@ assert(n == len(buf))
 
 ### Testing
 The package contains a `test` directory that holds all the tests for the package. test
-coverage for now is not good at all, only a couple of functions in `net/address.py`
-have tests and that is not acceptable but i'm still figuring the whole things out so
-i'm not so worried now.
-To run the scanty tests i have;
+coverage for now is not good at all, only a couple of functions in `net/netaddr.py`
+have tests and that is not acceptable but i'm still figuring the whole test thing out so
+i'm not worried.
+To run the scanty tests i have:
 
     $ python -m unittest discover -s test -v
 
@@ -212,10 +209,35 @@ For manual testing which is common with sockets, i have bunch of scripts in the 
 that are just good for doing that. There is a `testnet.sh` bash script that used socat
 to test echo socket servers.
 
-The `testnet.sh` supports testing all the socket types in the package.
+The `testnet.py` is a cli tool for spinning up clients/servers of the various network
+interfaces supported by this module
+
+      Use the net module to open socket servers or clients
+
+      Atleast one of the following should be specified:
+        -d    Dial, connect to a client
+        -l    Listen, open a server to listen for connections
+
+      The following are not optional:
+        -n    Specify the network type to connect to
+        -a    Specify address to bind connection to
+
+couple of examples;
+
+to open a unix domain socket server on /tmp/test.sock
+
+    $ python testnet.py -l -n unix -a /tmp/test.sock
+
+or a ipv6 udp server on localhost:5055
+
+    $ python testnet.py -l -n udp6 -a localhost:5055
+
+The `testnet.sh` supports testing couple of socket servers by spinning up clients
+to test the network interface that is specified.
     
     testnet.sh <options>
 
+    Atleast one of the following should be specified:
     -n          network type to connect to. supported is  
                 "unix-client" -> connect to unix datagram socket 
                 "unix-connect" -> connect to unix stream socket
@@ -226,12 +248,29 @@ The `testnet.sh` supports testing all the socket types in the package.
                 this option can be supplied as a  space separated string of multiple 
                 supported network types.
 
-    -all        connect to all the network types supported.
+    -all        Connect to all supported network interfaces.
 
-    -a          the address to connect to in "ip:port" format
+    The following options are not optional
+    -a          Specify address to connect to in "ip:port" format for tcp and udp networks
 
-    -u          the unix address to connect in the case of unix domain sockets.
+    -u          Specify unix domain socket address to connect to
 
     -t | -f     -t text to write into socket | -f path of file to write into socket.
 
+To test servers open on any network interface.
+
+connect and send data to ipv6 tcp server on localhost:1234
+
+    $ ./testnet.sh -t "random data to sent to server" -n tcp6 -a localhost:1234
+
+connect to unix domain socket server listening on /tmp/test.sock
+
+    $ ./testnet.sh -t "random data into socket" -n unix -u /tmp/test.sock
+
 ## TODO
+- Things seem to work now but i'm rethinking the whole listener thing. I do not
+fancy the idea of stream oriented network listener objects inheriting from the base `Conn`
+class anymore. This is because the listener objects inheriting from the Conn class end up with
+all methods declared on the Conn class which they should not have. I want to change this
+and create a more tailor made base class called `Listener` for stream oriented listeners
+to inherit from.

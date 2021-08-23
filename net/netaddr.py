@@ -2,45 +2,8 @@ from typing import Union, Optional
 import ipaddress as ipaddr
 import socket
 
+from  .netconn import Addr
 from  .errors import *
-
-class Addr:
-    """Addr is a generic wrapper around socket addresses
-
-    socket addresses are gotten either from socket.getaddrinfo,
-    returned from recvfrom functions or user entered.
-    specific address types are derived from this class and the str
-    function implemented to suit the conventional string representation
-    of that address type.
-
-    Attributes
-    ----------
-    addrinfo: object
-        a socket address
-    """
-    def __init__(self, addrinfo):
-        """
-        Parameters
-        -----------
-        addrinfo: object
-            The addrinfo socket address that is returned by socket.getaddrinfo
-            or is returned as a socket address from any socket connection.
-
-        network: str, optional
-            The network that the addrinfo represents. could be "tcp", "udp"
-            or any other network. It also represents the type of socket
-            connection Addr is associated with.
-        """
-        self.addrinfo = addrinfo
-
-    def __str__(self) -> str:
-        # return a string representation of addrinfo. The representation
-        # is different for different socket connection types so
-        # the individual addr classes should implement their own.
-        return repr(self.addrinfo)
-
-    def __repr__(self) -> str:
-        return self.__str__()
 
 class IPAddr(Addr):
     """IPAddr is a wrapper around a ip socket addresses.

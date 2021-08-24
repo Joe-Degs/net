@@ -217,8 +217,13 @@ def resolve_addr_list(addr_config: dict):
         )
 
 def net_is_valid(network: str, net: str) -> bool:
-    """net_is_valid checks if the net is suported and is part of the specified
-    network group.
+    """net_is_valid checks if net is a supported socket type.
+
+    supported nets are:
+        ('ip', 'ip4', 'ip6') for IP sockets
+        ('tcp', 'tcp4', 'tcp6') for TCP sockets
+        ('udp', 'udp4', 'udp6') for UDP sockets
+        ('unix' and 'unixgram') for Unix sockets
 
     Parameters
     ----------
@@ -244,7 +249,7 @@ def net_is_valid(network: str, net: str) -> bool:
         return False
 
 def inet_addr_list(addr_config: dict, network: str):
-    """internet_addr_list returns a list of TCPAddr | UDPAddr | IPAddr
+    """inet_addr_list returns a list of TCPAddr | UDPAddr | IPAddr
 
     Parameters
     ----------

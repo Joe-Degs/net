@@ -278,6 +278,6 @@ to inherit from.
 seem to find a way to make it them not block. This has been a problem since the beginning and
 it is literally driving me nuts now. The socket `read/write` uses the same methods on `io.BufferedRWPair`
 to perform reads and writes to the underlying socket. From the documentation of `io.BufferedRWPair.read`,
-calling read without arguments should read and return till EOF is encountered in which case it
-stops and returns an empty byte. But the `read`s are causing both sockets to block forever unless
-i do a close on the socket or i Ctrl+c on the client socket.This sh!t is frustrating.
+calling `read` without arguments should read and return the bytes read till EOF is encountered in which
+ case it stops and returns an empty byte. But the `read`s are causing both server and client sockets
+ to block forever unless i do a close on the socket or i Ctrl+c on the client socket.This sh!t is frustrating.

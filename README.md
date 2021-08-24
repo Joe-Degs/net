@@ -274,3 +274,10 @@ class anymore. This is because the listener objects inheriting from the Conn cla
 all methods declared on the Conn class which they should not have. I want to change this
 and create a more tailor made base class called `Listener` for stream oriented listeners
 to inherit from.
+- Socket clients opened with this package are blocking the socket on `read/recv` and i can't
+seem to find a way to make it them not block. This has been a problem since the beginning and
+it is literally driving me nuts now. The socket `read/write` uses the same methods on `io.BufferedRWPair`
+to perform reads and writes to the underlying socket. From the documentation of `io.BufferedRWPair`,
+calling read without arguments should read and return till EOF is encountered in which case it
+stops and returns an empty byte. But the `read`s are causing both sockets to block forever unless
+i do a close on the socket or i Ctrl+c on the client socket.This sh!t is frustrating.
